@@ -71,3 +71,6 @@ Thumbs.db
 *.dll
 *.exe
 
+CMakeFiles
+CMakeLists.txt.user
+cmake_install.cmake
