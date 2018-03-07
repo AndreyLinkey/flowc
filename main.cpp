@@ -31,84 +31,193 @@ using boost::asio::ip::udp;
 
 #include <boost/circular_buffer.hpp>
 
-#include "../include/swappable_circular_buffer.h"
+#include "include/swappable_circular_buffer.h"
+#include "include/parser.h"
+#include "include/templates.h"
+#include "include/sqlite.h"
 
-const std::size_t MAX_LENGTH = 1472;
-const std::size_t QUEUE_LENGTH = 20;
+const std::size_t MAX_LENGTH = 1024; //1472;
+const std::size_t QUEUE_LENGTH = 2;
 
-
-std::mutex mut;
-swappable_circular_buffer scb;
-std::condition_variable data_cond;
-
+typedef swappable_circular_buffer<raw_data, QUEUE_LENGTH> flow_buffer;
 
 class handler
 {
 public:
-    handler(swappable_circular_buffer& buffer, std::mutex& buffer_access, std::condition_variable& data_ready)
-        : buffer_(buffer), buffer_access_(buffer_access), data_ready_(data_ready)
+    handler(flow_buffer& buffer, std::mutex& buffer_access, std::condition_variable& data_ready, storage& st, int idx = 0)
+        : buffer_(buffer), buffer_access_(buffer_access), data_ready_(data_ready), data_(MAX_LENGTH), process_(true), storage_(st), idx_(idx)
     {
-        //do_receive();
-        // io_service_.run();
     }
 
     void run()
     {
-        std::unique_lock<std::mutex> data_ready_lock(data_ready_);
-        while(process_)
+        std::unique_lock<std::mutex> data_ready_lock(buffer_access_);
+        std::cout << "*thr" << idx_ << "* " << "hello from run" << std::endl;
+        while(true)
         {
+            std::cout << "*thr" << idx_ << "* " << "checking buffer size" << std::endl;
             while(buffer_.size() != 0)
             {
+                std::cout << "*thr" << idx_ << "* " << "there is somethig in buffer, swapping data" << std::endl;
                 buffer_.swap_tail(data_);
+                std::cout << "*thr" << idx_ << "* " << "performing data process, creating parser object" << std::endl;
+                parser p(data_);
+                std::cout << "*thr" << idx_ << "* " << "unlocking thread" << std::endl;
                 data_ready_lock.unlock();
-
-                process_data_();
+                std::vector<flow_data> flows = p.flows();
+                for(flow_data flow: flows)
+                {
+                    if(!check_addr(flow.ip_src_addr))
+                        continue;
+                    std::string flow_str("flow data:\n");
+                    flow_str += "\ttimestamp=" + std::to_string(flow.timestamp) +
+                            "\n\tip_src_addr=" + std::to_string(flow.ip_src_addr) + "(" + boost::asio::ip::address_v4(flow.ip_src_addr).to_string() + ")\n" +
+                            "\tip_dst_addr=" + std::to_string(flow.ip_dst_addr) + "(" + boost::asio::ip::address_v4(flow.ip_dst_addr).to_string() + ")\n" +
+                            "\tpostnat_src_addr=" + std::to_string(flow.postnat_src_addr) + "(" + boost::asio::ip::address_v4(flow.postnat_src_addr).to_string() + ")";
+                    std::cout << flow_str << std::endl;
+                    auto insertedId = storage_.insert(flow);
+                }
+                std::cout << "*thr" << idx_ << "* " << "locking thread" << std::endl;
                 data_ready_lock.lock();
             }
+            std::cout << "*thr" << idx_ << "* " << "buffer is empty, nice) ***PROCESS = " << (long)&process_ << "/" << std::this_thread::get_id() << std::endl;
+            if(process_ == false)
+            {
+                std::cout << "*thr" << idx_ << "* " << "terminate? ok..." << std::endl;
+                break;
+            }
+            std::cout << "*thr" << idx_ << "* " << "it's time to wait notification, zZzZz...\n" << std::endl;
             data_ready_.wait(data_ready_lock);
+            std::cout << "*thr" << idx_ << "* " << "time to work!" << std::endl;
         }
     }
 
     void terminate()
     {
+        std::cout << "*thr" << idx_ << "* " << "hello from terminate" << std::endl;
+        std::lock_guard<std::mutex> data_ready_lock(buffer_access_);
+        std::cout << "*thr" << idx_ << "* " << "terminate lock accuired, set process = false" << std::endl;
         process_ = false;
+        std::cout << "*thr" << idx_ << "* " << "terminate flag is set, unlocked ***PROCESS = " << (long)&process_ << "/" << std::this_thread::get_id() << std::endl;
     }
 
 private:
-    void process_data_()
+//        for(int i = 0 ; i < data_.size(); ++i )
+//        {
+//            if(i > 0 && i % 16 == 0)
+//                std::cout << std::endl;
+//            else if(i > 0 && i % 8 == 0)
+//                std::cout << "  ";
+//            std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data_[i] << ' ';
+//        }
+//        std::cout << std::endl;
+
+    bool check_addr(uint32_t addr)
     {
-        for(int i = 0 ; i < data_.size(); ++i )
-        {
-            if(i > 0 && i % 16 == 0)
-                std::cout << std::endl;
-            else if(i > 0 && i % 8 == 0)
-                std::cout << "  ";
-            std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data_[i] << ' ';
-        }
-        std::cout << std::endl;
+        uint32_t netaddr = 3232258048;
+        uint32_t netmask = 4294967040;
+        if((netaddr & netmask) == (addr & netmask) && addr != netaddr + 1)
+            return true;
+        return false;
     }
 
-    swappable_circular_buffer& buffer_;
+    flow_buffer& buffer_;
     std::mutex& buffer_access_;
     std::condition_variable& data_ready_;
-    std::vector<unsigned char> data_(MAX_LENGTH);
-    bool process_ = true;
+    raw_data data_;
+    volatile bool process_;
+    storage& storage_;
+    int idx_;
 };
+
+
+class test
+{
+public:
+    void add_new(int number)
+    {
+        data = std::make_shared<int>(number);
+    }
+
+    std::shared_ptr<int> number()
+    {
+        return data;
+    }
+
+    void print()
+    {
+        std::cout << '*' << *data << std::endl;
+    }
+
+private:
+    std::shared_ptr<int> data;
+};
+
 
 int main()
 {
-    //std::array<unsigned char, IPFIX_HDR_LENGTH> hdr_buff;
+    storage storage_ = sqlite_storage("db.sqlite");
 
-    boost::asio::io_service io_service;
+
+    std::mutex buffer_access;
+    std::condition_variable data_ready;
+    template_storage ts;
+
     int port = 2055;
+    boost::asio::io_service io_service;
     udp::endpoint flow_source = udp::endpoint(boost::asio::ip::address_v4::any(), port);
     boost::asio::ip::udp::socket socket = boost::asio::ip::udp::socket(io_service, flow_source);
     io_service.run();
 
-    swappable_circular_buffer<std::vector<unsigned char>, 20> scb(std::vector<unsigned char>(MAX_LENGTH));
+    raw_data data(MAX_LENGTH);
+    flow_buffer fbuff(data);
+
+    handler h1(fbuff, buffer_access, data_ready, storage_, 1);
+    handler h2(fbuff, buffer_access, data_ready, storage_, 2);
+    std::thread t1(std::bind(&handler::run, &h1));
+    std::thread t2(std::bind(&handler::run, &h2));
+
+    std::unique_lock<std::mutex> data_ready_lock(buffer_access);
+    data_ready_lock.unlock();
+    while(true)
+    {
+        std::cout << "*main* waiting for data" << std::endl;
+        socket.receive(boost::asio::buffer(data, MAX_LENGTH));
+        std::cout << "*main* received, locking main" << std::endl;
+        data_ready_lock.lock();
+        std::cout << "*main* swapping data" << std::endl;
+        fbuff.swap_head(data);
+        std::cout << "*main* unlocking thread" << std::endl;
+        data_ready_lock.unlock();
+        std::cout << "*main* notify one" << std::endl;
+        data_ready.notify_one();
+    }
+
+//    std::cout << "*main* waiting for data" << std::endl;
+//    socket.receive(boost::asio::buffer(data, MAX_LENGTH));
+//    std::cout << "*main* received, locking main" << std::endl;
+//    data_ready_lock.lock();
+//    std::cout << "*main* swapping data" << std::endl;
+//    nfb.swap_head(data);
+//    std::cout << "*main* unlocking thread" << std::endl;
+//    data_ready_lock.unlock();
+//    std::cout << "*main* notify one" << std::endl;
+//    data_ready.notify_one();
 
 
+    std::cout << "*main* performing terminate" << std::endl;
+    h1.terminate();
+    h2.terminate();
 
+    std::cout << "*main* notifying all" << std::endl;
+    data_ready_lock.lock();
+    data_ready.notify_all();
+    data_ready_lock.unlock();
+
+    t1.join();
+    t2.join();
+
+    /*
     boost::asio::streambuf hdr_buff;
     hdr_buff.prepare(IPFIX_HDR_LENGTH);
 
@@ -139,10 +248,11 @@ int main()
 
     //buff.resize(length);
     print_buffer(buff);
+    */
+}
 
 
-
-
+/*
 void data_preparation_thread()
 {
     udp::socket& socket_;
@@ -173,7 +283,7 @@ void data_processing_thread()
         break;
     }
 }
-
+*/
 
 
 /*
@@ -354,42 +464,6 @@ int main()
 //    }
 //}
 
-
-
-
-
-
-
-/*
-void print(boost::circular_buffer<std::string>& cb)
-{
-    std::cout << cb.size() << " front: " << cb.front() << " / back " << cb.back() << " / is_full " << cb.full() << std::endl;
-}
-
-int main(int argc, char* argv[])
-{
-    std::string test("0_rrey33th");
-
-    boost::circular_buffer<std::string> cb;
-    cb.set_capacity(3);
-    cb.push_front(std::string("1_dsgsgsg"));
-    print(cb);
-    cb.push_front(std::string("2_ewjw232"));
-    print(cb);
-
-    std::swap(cb.back(), test);
-
-    cb.pop_back();
-    print(cb);
-    cb.push_front(std::string("3_rfgwgwb"));
-    print(cb);
-    cb.push_front(std::string("4_dvfdbgb"));
-    print(cb);
-    cb.push_front(std::string("5_hnghmmg"));
-    print(cb);
-
-    std::cout << test << std::endl;
-}*/
 
 /*
 

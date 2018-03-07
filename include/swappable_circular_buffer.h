@@ -50,8 +50,11 @@ public:
     void print() const
     {
         for(int i = 0; i < buffer_.size(); ++i)
-            std::cout << ' ' << buffer_[i];
-        std::cout << std::endl;
+        {
+            for(unsigned char byte: buffer_[i])
+                std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+            std::cout << std::endl;
+        }
     }
 
 private:
