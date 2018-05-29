@@ -7,19 +7,13 @@
 auto sqlite_storage(const std::string& db_name)
 {
     using namespace sqlite_orm;
-    auto storage = make_storage(db_name,
-                                make_table("flows",
-                                           make_column("timestamp",
-                                                       &flow_data::timestamp),
-                                           make_column("ip_src_addr",
-                                                       &flow_data::ip_src_addr),
-                                           make_column("ip_dst_addr",
-                                                       &flow_data::ip_dst_addr),
-                                           make_column("postnat_src_addr",
-                                                       &flow_data::postnat_src_addr)));
+    auto storage = make_storage(db_name, make_table("flows",
+        make_column("timestamp", &flow_data::timestamp),
+        make_column("ip_src_addr", &flow_data::ip_src_addr),
+        make_column("ip_dst_addr", &flow_data::ip_dst_addr),
+        make_column("postnat_src_addr", &flow_data::postnat_src_addr)));
     storage.sync_schema();
     return storage;
-
 }
 
 typedef decltype(sqlite_storage("")) storage;

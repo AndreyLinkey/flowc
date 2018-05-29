@@ -100,8 +100,11 @@ std::vector<flow_data> parser::flows()
 {
     std::vector<flow_data> sets_data;
 
+    std::cout << "parser: sets length: " << std::to_string(sets_.size()) << std::endl;
+
     for(set_info set : sets_)
     {
+        std::cout << "parser: parsing set id= " << std::to_string(set.id) << std::endl;
         if(set.id < 256)
             continue;
         if(!set.templ_ptr)
@@ -119,6 +122,8 @@ std::vector<flow_data> parser::flows()
                 uint16_t offset = flow_offset + field.offset;
                 fields.at(field.type)(data_it + offset, data);
             }
+            std::cout << "parser: appending data " << std::to_string(data.ip_src_addr) << " " << std::to_string(data.ip_dst_addr) << " " <<
+                         std::to_string(data.postnat_src_addr) << std::endl;
             sets_data.push_back(data);
             flow_offset += templ.length;
         }
