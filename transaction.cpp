@@ -107,33 +107,3 @@ unsigned int pgsql_transaction::get_max_id()
     return max_id;
 }
 
-
-/*
-    char * sql;
-
-       // Create SQL statement
-       sql = "SELECT * from COMPANY";
-
-       // Create a non-transactional object.
-       nontransaction N(C);
-
-       // Execute SQL query
-       result R( N.exec( sql ));
-
-       // List down all the records
-       for (result::const_iterator c = R.begin(); c != R.end(); ++c) {
-          cout << "ID = " << c[0].as<int>() << endl;
-          cout << "Name = " << c[1].as<string>() << endl;
-          cout << "Age = " << c[2].as<int>() << endl;
-          cout << "Address = " << c[3].as<string>() << endl;
-          cout << "Salary = " << c[4].as<float>() << endl;
-       }
-       cout << "Operation done successfully" << endl;
-       C.disconnect ();
-    } catch (const std::exception &e) {
-       cerr << e.what() << std::endl;
-       return 1;
-    }
-
-    return 0;
-*/

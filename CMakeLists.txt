@@ -5,10 +5,12 @@ project(flowc)
 set(SOURCES
     templates.cpp
     field.cpp
+    handler.cpp
     parser.cpp
     transaction.cpp)
 set(HEADERS
     include/field.h
+    include/handler.h
     include/templates.h
     include/parser.h
     include/swappable_circular_buffer.h

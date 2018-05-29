@@ -40,7 +40,6 @@ public:
     pgsql_transaction(connection& db_connection);
     void append_data(flow_data data);
     void execute();
-    //std::list<flow_data> get_by_date(uint32_t from_date, uint32_t to_date);
     std::list<flow_data> get_by_date(uint32_t from_date = 0, uint32_t to_date = UINT32_MAX);
     std::list<flow_data> get_by_id(unsigned int from_id = 0, unsigned int to_id = UINT32_MAX);
     unsigned int get_max_id();

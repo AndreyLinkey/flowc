@@ -1,25 +1,20 @@
 #ifndef SWAPPABLE_CIRCULAR_BUFFER_H
 #define SWAPPABLE_CIRCULAR_BUFFER_H
 
-#include <array>
 #include <iostream>
+#include <vector>
 
-template <typename T, size_t buffer_length>
+template <typename T>
 class swappable_circular_buffer
 {
-    typedef std::array<T, buffer_length> buffer;
+    typedef std::vector<T> buffer;
 
 public:
-    swappable_circular_buffer()
-        : size_(0), head_(buffer_.begin()), tail_(buffer_.begin())
+    swappable_circular_buffer(size_t buffer_length, size_t unit_length)
+        : size_(0), buffer_(buffer_length), head_(buffer_.begin()), tail_(buffer_.begin())
     {
-
-    }
-
-    swappable_circular_buffer(const T& value)
-        : swappable_circular_buffer()
-    {
-        buffer_.fill(value);
+        for(T& e: buffer_)
+            e.resize(unit_length);
     }
 
     int size() const
@@ -29,7 +24,7 @@ public:
 
     void swap_head(T& other)
     {
-        if(size_ + 1 > buffer_length)
+        if(size_ + 1 > buffer_.size())
             throw std::length_error("overflow");
 
         std::swap(*head_, other);
@@ -65,47 +60,9 @@ private:
 
 
     buffer buffer_;
-    int size_;
+    size_t size_;
     typename buffer::iterator head_;
     typename buffer::iterator tail_;
 };
-
-/*
-int main()
-{
-//    std::vector<char> v1({'f', 'o', 'o'});
-//    std::vector<char> v2({'b', 'a', 'r'});
-//    std::vector<char> v3({'x', 'y', 'z'});
-//    std::vector<char> v4;
-//    std::vector<char> v5;
-
-    int i1 = 10;
-    int i2 = 42;
-    int i3 = 75;
-    int i4 = 15;
-    int i5 = 32;
-
-    swappable_circular_buffer<int, 0> scb;
-    scb.swap_head(i1);
-    scb.swap_head(i2);
-    scb.swap_head(i3);
-    scb.print();
-
-    int temp1 = 1;
-    scb.swap_tail(temp1);
-    scb.print();
-    std::cout << temp1 << std::endl;
-
-    scb.swap_head(i4);
-    scb.print();
-
-    int temp2 = 22;
-    scb.swap_tail(temp2);
-    scb.print();
-    std::cout << temp2 << std::endl;
-
-    //scb.swap_head(i5);
-} */
-
 
 #endif // SWAPPABLE_CIRCULAR_BUFFER_H

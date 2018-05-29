@@ -131,16 +131,3 @@ std::vector<flow_data> parser::flows()
     return sets_data;
 }
 
-/*
-bool parser::check_temlate(flow_data& data)
-{
-    if(data.size() < (IPFIX_HEADER_LENGTH + IPFIX_SET_HEADER_LENGTH))
-        throw std::invalid_argument("message too short");
-
-    flow_data::const_iterator set_id_it = data.cbegin() + IPFIX_HEADER_LENGTH + IPFIX_SET_ID_OFFSET;
-    const uint16_t set_id = packtwo2int(set_id_it);
-    if(set_id != TEMPLATE_SET_ID)
-        return false;
-    return true;
-}
-*/

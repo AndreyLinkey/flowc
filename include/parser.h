@@ -1,11 +1,11 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include <vector>
-#include <utility>
-#include <string>
-
 #include <iostream>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "field.h"
 #include "templates.h"
 

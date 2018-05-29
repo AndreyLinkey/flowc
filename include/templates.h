@@ -40,39 +40,4 @@ private:
 
 };
 
-
-
-
-
-/*
-void print(boost::circular_buffer<std::string>& cb)
-{
-    std::cout << cb.size() << " front: " << cb.front() << " / back " << cb.back() << " / is_full " << cb.full() << std::endl;
-}
-
-int main(int argc, char* argv[])
-{
-    std::string test("0_rrey33th");
-
-    boost::circular_buffer<std::string> cb;
-    cb.set_capacity(3);
-    cb.push_front(std::string("1_dsgsgsg"));
-    print(cb);
-    cb.push_front(std::string("2_ewjw232"));
-    print(cb);
-
-    std::swap(cb.back(), test);
-
-    cb.pop_back();
-    print(cb);
-    cb.push_front(std::string("3_rfgwgwb"));
-    print(cb);
-    cb.push_front(std::string("4_dvfdbgb"));
-    print(cb);
-    cb.push_front(std::string("5_hnghmmg"));
-    print(cb);
-
-    std::cout << test << std::endl;
-}*/
-
 #endif // TEMPLATES_H
