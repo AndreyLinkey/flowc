@@ -5,11 +5,13 @@ project(flowc)
 set(SOURCES
     templates.cpp
     field.cpp
+    filter.cpp
     handler.cpp
     parser.cpp
     transaction.cpp)
 set(HEADERS
     include/field.h
+    include/filter.h
     include/handler.h
     include/templates.h
     include/parser.h

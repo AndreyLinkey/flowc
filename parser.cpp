@@ -12,8 +12,6 @@ parser::parser(raw_data& data)
         throw std::invalid_argument("buffer too short");
     timestamp_ = packfour2int(data_it + IPFIX_TIMESTAMP_OFFSET);
 
-    std::cout << "length=" << data_length << " time=" << timestamp_ << std::endl;
-
     uint16_t set_offset = IPFIX_HEADER_LENGTH;
     while(set_offset < data_length)
     {
@@ -24,7 +22,6 @@ parser::parser(raw_data& data)
         set.templ_ptr = templates_.template_ptr(set.id);
         sets_.push_back(set);
         set_offset += set.length;
-        std::cout << "new set!!! id=" << set.id << " length=" << set.length << " offset=" << set.offset << std::endl;
     }
 
     if(set_offset != data_length)
@@ -37,60 +34,45 @@ template_storage parser::templates_;
 
 void parser::parse_templates_()
 {
-    std::cout << "parsing template" << std::endl;
     for(set_info set : sets_)
     {
-        std::cout << "processing set: id=" << set.id << " length=" << set.length << " offset=" << set.offset << std::endl;
         if(set.id != 2)
         {
-            std::cout << "isn't template" << std::endl;
             continue;
         }
 
-        std::cout << "parsing template " << set.offset << " offset" << std::endl;
         raw_data::const_iterator data_it = data_.cbegin() + set.offset;
-        std::cout << "iteraror set to " << set.offset << std::endl;
         uint16_t template_offset = IPFIX_SET_HEADER_LENGTH;
-        std::cout << "offset variable " << template_offset << std::endl;
         while(template_offset < set.length)
         {
             uint16_t templ_id = packtwo2int(data_it + template_offset + IPFIX_TEMPLATE_ID_OFFSET);
-            std::cout << "new flow template: descriptor " << templ_id << std::endl;
             uint16_t field_count = packtwo2int(data_it + template_offset + IPFIX_TEMPLATE_COUNT_OFFSET);
-            std::cout << "field count " << field_count << std::endl;
 
             template_offset += IPFIX_TEMPLATE_HEADER_LENGTH;
-            std::cout << "offset variable " << template_offset << std::endl;
             if(template_offset + IPFIX_TEMPLATE_FIELD_LENGTH * field_count > set.length)
                 throw std::invalid_argument("template field count error");
 
-            std::cout << "processing fields" << std::endl;
             flow_template ftemplate;
             ftemplate.length = 0;
             for(uint16_t idx = 0; idx < field_count; ++idx)
             {
                 field_type type = static_cast<field_type>(packtwo2int(data_it + template_offset + IPFIX_TEMPLATE_FIELD_TYPE_OFFSET));
                 uint16_t length = packtwo2int(data_it + template_offset + IPFIX_TEMPLATE_FIELD_LENGTH_OFFSET);
-                std::cout << "field type is " << type << std::endl;
 
                 if(fields.find(type) != fields.end())
                 {
-                    std::cout << "new field" << std::endl;
                     template_field field;
                     field.type = type;
                     field.length = length;
                     field.offset = ftemplate.length;
                     ftemplate.fields.push_back(field);
-                    std::cout << "field added: type=" << field.type << " length=" << field.length << " offset=" << field.offset << std::endl;
                 }
                 template_offset += IPFIX_TEMPLATE_FIELD_LENGTH;
                 ftemplate.length += length;
-                std::cout << "offset variable " << template_offset << std::endl;
             }
             if(fields.size() == ftemplate.fields.size())
             {
                 templates_.add_template(templ_id, ftemplate);
-                std::cout << "template " << templ_id << " added, length is " << ftemplate.length << std::endl;
             }
         }
     }
@@ -99,12 +81,8 @@ void parser::parse_templates_()
 std::vector<flow_data> parser::flows()
 {
     std::vector<flow_data> sets_data;
-
-    std::cout << "parser: sets length: " << std::to_string(sets_.size()) << std::endl;
-
     for(set_info set : sets_)
     {
-        std::cout << "parser: parsing set id= " << std::to_string(set.id) << std::endl;
         if(set.id < 256)
             continue;
         if(!set.templ_ptr)
@@ -122,8 +100,6 @@ std::vector<flow_data> parser::flows()
                 uint16_t offset = flow_offset + field.offset;
                 fields.at(field.type)(data_it + offset, data);
             }
-            std::cout << "parser: appending data " << std::to_string(data.ip_src_addr) << " " << std::to_string(data.ip_dst_addr) << " " <<
-                         std::to_string(data.postnat_src_addr) << std::endl;
             sets_data.push_back(data);
             flow_offset += templ.length;
         }

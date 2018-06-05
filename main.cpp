@@ -1,12 +1,3 @@
-//
-// async_udp_echo_server.cpp
-// ~~~~~~~~~~~~~~~~~~~~~~~~~
-//
-// Copyright (c) 2003-2017 Christopher M. Kohlhoff (chris at kohlhoff dot com)
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-//
 
 #include <array>
 #include <vector>
@@ -43,7 +34,7 @@ bool terminate = false;
 
 void signal_handler(int signal)
 {
-    std::cout << "*main* signal received" << std::endl;
+    //std::cout << "*main* signal received" << std::endl;
     terminate = true;
 }
 
@@ -122,25 +113,18 @@ int main()
     data_ready_lock.unlock();
     while(!terminate)
     {
-        std::cout << "*main* waiting for data" << std::endl;
         socket.receive(boost::asio::buffer(data, MAX_LENGTH));
-        std::cout << "*main* received, locking main" << std::endl;
         data_ready_lock.lock();
-        std::cout << "*main* swapping data" << std::endl;
         fbuff.swap_head(data);
-        std::cout << "*main* unlocking thread" << std::endl;
         data_ready_lock.unlock();
-        std::cout << "*main* notify one" << std::endl;
         data_ready.notify_one();
     }
 
-    std::cout << "*main* performing terminate" << std::endl;
     for (handler& h: handlers)
     {
         h.terminate();
     }
 
-    std::cout << "*main* notifying all" << std::endl;
     data_ready_lock.lock();
     data_ready.notify_all();
     data_ready_lock.unlock();

@@ -130,15 +130,15 @@ int main(int argc, const char *argv[])
 //    storage storage_ = sqlite_storage("db.sqlite");
 //    using namespace sqlite_orm;
 
-    pgsql_transaction tr(db_);
+    pgsql_transaction tr;
 
-    unsigned int max_id = tr.get_max_id();
+    unsigned int max_id = tr.get_max_id(db_);
     std::cout << "max id = " << to_string(max_id) << std::endl;
 
     while(true)
     {
-        std::list<flow_data> data = tr.get_by_id(max_id);
-        max_id = tr.get_max_id() + 1;
+        std::list<flow_data> data = tr.get_by_id(db_, max_id);
+        max_id = tr.get_max_id(db_) + 1;
         for(flow_data& flow : data)
         {
             //if(flow.ip_src_addr != 3232258206 || flow.ip_dst_addr == 3232258049)

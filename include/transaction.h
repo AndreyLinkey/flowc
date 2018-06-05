@@ -37,17 +37,18 @@ struct connection_info
 class pgsql_transaction
 {
 public:
-    pgsql_transaction(connection& db_connection);
+    pgsql_transaction();
     void append_data(flow_data data);
-    void execute();
-    std::list<flow_data> get_by_date(uint32_t from_date = 0, uint32_t to_date = UINT32_MAX);
-    std::list<flow_data> get_by_id(unsigned int from_id = 0, unsigned int to_id = UINT32_MAX);
-    unsigned int get_max_id();
-
+    void execute(connection& db_connection);
+    std::list<flow_data> get_by_date(connection& db_connection, uint32_t from_date = 0, uint32_t to_date = UINT32_MAX);
+    std::list<flow_data> get_by_id(connection& db_connection, unsigned int from_id = 0, unsigned int to_id = UINT32_MAX);
+    unsigned int get_max_id(connection& db_connection);
+    std::size_t row_count();
+    void clear();
 
 private:
-    work worker_;
     std::string statements_;
+    std::size_t rows_;
 };
 
 #endif // TRANSACTION_H

@@ -28,7 +28,6 @@ struct flow_data
 typedef std::vector<unsigned char> raw_data;
 typedef void (&field_handler)(raw_data::const_iterator, flow_data&);
 
-
 uint16_t packtwo2int(raw_data::const_iterator data_it);
 uint32_t packfour2int(raw_data::const_iterator data_it);
 

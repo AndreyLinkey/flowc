@@ -9,6 +9,7 @@
 #include <boost/asio.hpp>
 
 #include "field.h"
+#include "filter.h"
 #include "parser.h"
 #include "swappable_circular_buffer.h"
 #include "transaction.h"
