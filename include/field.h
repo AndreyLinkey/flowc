@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <map>
+#include <tuple>
 #include <vector>
 
 static const uint16_t TEMPLATE_SET_ID = 2;
@@ -19,6 +20,9 @@ enum field_type
 
 struct flow_data
 {
+    //bool operator==(const flow_data& other) const;
+    bool operator<(const flow_data& other) const;
+
     uint32_t timestamp;
     uint32_t ip_src_addr;
     uint32_t ip_dst_addr;

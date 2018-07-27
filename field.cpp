@@ -1,5 +1,22 @@
 #include "include/field.h"
 
+//bool flow_data::operator==(const flow_data& other) const
+//{
+//    return (ip_dst_addr == other.ip_dst_addr &&
+//            ip_src_addr == other.ip_src_addr &&
+//            postnat_src_addr == other.postnat_src_addr);
+//}
+
+bool flow_data::operator<(const flow_data& other) const
+{
+    return std::tie(ip_src_addr, ip_dst_addr, postnat_src_addr) <
+           std::tie(other.ip_src_addr, other.ip_dst_addr, other.postnat_src_addr);
+
+//    return (ip_dst_addr < other.ip_dst_addr ||
+//            ip_src_addr < other.ip_src_addr ||
+//            postnat_src_addr < other.postnat_src_addr);
+}
+
 uint16_t packtwo2int(raw_data::const_iterator data_it)
 {
     return *data_it << 8 | *(data_it + 1);

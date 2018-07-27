@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <shared_mutex>
 
 template <typename T>
 class swappable_circular_buffer
@@ -10,20 +11,25 @@ class swappable_circular_buffer
     typedef std::vector<T> buffer;
 
 public:
-    swappable_circular_buffer(size_t buffer_length, size_t unit_length)
+    swappable_circular_buffer(size_t buffer_length, size_t unit_length = 0)
         : size_(0), buffer_(buffer_length), head_(buffer_.begin()), tail_(buffer_.begin())
     {
-        for(T& e: buffer_)
-            e.resize(unit_length);
+        if(unit_length > 0)
+        {
+            for(T& e: buffer_)
+                e.resize(unit_length);
+        }
     }
 
     int size() const
     {
+        //std::shared_lock<std::shared_mutex> lock(buffer_mutex_);
         return size_;
     }
 
     void swap_head(T& other)
     {
+        //std::lock_guard<std::shared_mutex> lock(buffer_mutex_);
         if(size_ + 1 > buffer_.size())
             throw std::length_error("overflow");
 
@@ -34,6 +40,7 @@ public:
 
     void swap_tail(T& other)
     {
+        //std::lock_guard<std::shared_mutex> lock(buffer_mutex_);
         if(size_ - 1 < 0)
             throw std::out_of_range("empty");
 
@@ -42,8 +49,15 @@ public:
         size_ -= 1;
     }
 
+    size_t unit_length() const
+    {
+        //std::shared_lock<std::shared_mutex> lock(buffer_mutex_);
+        return head_->size();
+    }
+
     void print() const
     {
+        //std::shared_lock<std::shared_mutex> lock(buffer_mutex_);
         for(int i = 0; i < buffer_.size(); ++i)
         {
             for(unsigned char byte: buffer_[i])
@@ -58,9 +72,9 @@ private:
         iter = (iter + 1 == buffer_.end()) ? buffer_.begin(): iter + 1;
     }
 
-
     buffer buffer_;
     size_t size_;
+    mutable std::shared_mutex buffer_mutex_;
     typename buffer::iterator head_;
     typename buffer::iterator tail_;
 };

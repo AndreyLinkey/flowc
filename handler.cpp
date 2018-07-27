@@ -1,36 +1,43 @@
 #include "include/handler.h"
 
-handler::handler(std::reference_wrapper<flow_buffer> buffer, std::reference_wrapper<std::mutex> buffer_access,
-        std::reference_wrapper<std::condition_variable> data_ready, std::reference_wrapper<connection_info> conn_info,
-        size_t data_length, int idx)
-    : buffer_(buffer), buffer_access_(buffer_access), data_ready_(data_ready), data_(data_length), process_(true), conn_info_(conn_info), idx_(idx)
+handler::handler(flow_buffer& buffer, filter& flt, container& cont, const settings& conf_opts, int idx)
+    : buffer_(buffer), flt_(flt), cont_(cont), conf_opts_(conf_opts), data_(buffer.unit_length()),
+      process_(true), idx_(idx)
 {
 
 }
 
-void handler::run()
+void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready)
 {
-    connection db(conn_info_.get().to_string());
-    pgsql_transaction tr;
-    filter flt;
-    std::unique_lock<std::mutex> data_ready_lock(buffer_access_.get());
+    //connection db(conf_opts_.conn_info().to_string());
+    //pgsql_transaction tr;
+    std::unique_lock<std::mutex> data_ready_lock(buffer_access);
+
+    std::cout << "fbuff addr in thread " << idx_ << " is " << &buffer_ << " "
+              << "filter addr in thread " << idx_ << " is " << &flt_ << std::endl;
+
+    std::vector<flow_data> flows;
     while(true)
     {
-        while(buffer_.get().size() != 0)
+        while(buffer_.size() != 0)
         {
-            buffer_.get().swap_tail(data_);
+            buffer_.swap_tail(data_);
             parser p(data_);
             data_ready_lock.unlock();
-            std::vector<flow_data> flows = p.flows();
-            for(flow_data flow: flows)
+            std::vector<flow_data> parsed = p.flows();
+            //std::vector<flow_data> flows = p.flows();
+            for(flow_data flow: parsed)
             {
-                if(!check_addr_(flow.ip_src_addr) || !flt.check_flow(flow))
+                if(!flt_.check_flow(flow))
                     continue;
-                tr.append_data(flow);
+                flows.push_back(flow);
+                //tr.append_data(table_, flow);
             }
-            if(tr.row_count() > 1000)
+            if(flows.size() > RECORDS_COUNT)
             {
-                tr.execute(db);
+                cont_.store_flows(flows);
+                flows.clear();
+                //tr.execute(db);
             }
             data_ready_lock.lock();
         }
@@ -39,23 +46,18 @@ void handler::run()
         {
             break;
         }
-        data_ready_.get().wait(data_ready_lock);
+        data_ready.wait(data_ready_lock);
     }
-    db.disconnect();
+    //db.disconnect();
+}
+
+void handler::set_table(const std::string& table_name)
+{
+    table_ = table_name;
 }
 
 void handler::terminate()
 {
-    std::lock_guard<std::mutex> data_ready_lock(buffer_access_.get());
+    //std::lock_guard<std::mutex> data_ready_lock(buffer_access_.get());
     process_ = false;
 }
-
-bool handler::check_addr_(uint32_t addr)
-{
-    uint32_t netaddr = 1681915904;
-    uint32_t netmask = 4294901760;
-    if((netaddr & netmask) == (addr & netmask) && addr != netaddr + 1)
-        return true;
-    return false;
-}
-

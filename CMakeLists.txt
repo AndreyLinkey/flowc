@@ -3,20 +3,26 @@ cmake_minimum_required(VERSION 2.8)
 project(flowc)
 
 set(SOURCES
-    templates.cpp
+    container.cpp
     field.cpp
     filter.cpp
     handler.cpp
+    network.cpp
     parser.cpp
-    transaction.cpp)
+    settings.cpp
+    templates.cpp
+    )
 set(HEADERS
+    include/byte_order.h
+    include/container.h
     include/field.h
     include/filter.h
     include/handler.h
-    include/templates.h
+    include/network.h
     include/parser.h
+    include/settings.h
     include/swappable_circular_buffer.h
-    include/transaction.h)
+    include/templates.h)
 set (CMAKE_CXX_STANDARD 17)
 add_executable(${PROJECT_NAME} main.cpp ${SOURCES} ${HEADERS})
 add_executable(${PROJECT_NAME}_viewer main_viewer.cpp ${SOURCES} ${HEADERS})

@@ -1,20 +1,18 @@
 
-#include <array>
+//#include <array>
 #include <vector>
 #include <cstdlib>
 #include <iostream>
-#include <boost/asio.hpp>
+//#include <boost/asio.hpp>
 #include <iostream>
 #include <iomanip>
-#include <algorithm>
-
-using boost::asio::ip::udp;
+//#include <algorithm>
 
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
 #include <fstream>
-#include <queue>
+//#include <queue>
 #include <string>
 #include <thread>
 #include <utility>
@@ -23,116 +21,126 @@ using boost::asio::ip::udp;
 
 #include "include/swappable_circular_buffer.h"
 #include "include/parser.h"
+#include "include/settings.h"
 #include "include/templates.h"
-#include "include/transaction.h"
+//#include "include/transaction.h"
 #include "include/handler.h"
+#include "include/container.h"
 
+using boost::asio::io_service;
+using boost::asio::ip::udp;
+
+const uint32_t DUPLICATE_TIMEOUT = 180;
 const std::string CONFIG_NAME = "config";
-const std::size_t MAX_LENGTH = 1472;
 
 bool terminate = false;
 
-void signal_handler(int signal)
+//void create_table(const settings& s, const std::string& name)
+//{
+//    connection db(s.conn_info().to_string());
+//    pgsql_transaction tr;
+//    tr.create_table(db, name);
+//}
+
+void sigint_handler(int signal)
 {
-    //std::cout << "*main* signal received" << std::endl;
     terminate = true;
 }
 
-using namespace boost::program_options;
-
 int main()
 {
-    std::signal(SIGINT, signal_handler);
-
-    int source_port, queue_length, threads_count;
-    connection_info ci;
     try
     {
-        options_description desc{"Options"};
-        desc.add_options()
-            ("help,h", "Help screen")
-            ("source", value<int>()->default_value(2055), "Source port")
-            ("queue", value<int>()->default_value(10), "Queue length")
-            ("threads", value<int>()->default_value(1), "Threads count")
-            ("dbname", value<std::string>(), "Database name")
-            ("user", value<std::string>(), "Database user")
-            ("password", value<std::string>(), "Database paword")
-            ("hostaddr", value<std::string>(), "Database host address");
-        variables_map vm;
+        settings cfg = settings::load_config(CONFIG_NAME);
 
-        std::ifstream ifs{CONFIG_NAME.c_str()};
-        if (!ifs)
-            throw std::runtime_error("no configuration found");
+        io_service srv;
+        udp::endpoint flow_source = udp::endpoint(boost::asio::ip::address_v4::any(), cfg.source_port());
+        udp::socket socket = udp::socket(srv, flow_source);
+        srv.run();
 
-        store(parse_config_file(ifs, desc, true), vm);
-        notify(vm);
+        std::signal(SIGINT, sigint_handler);
+        std::mutex buffer_access;
+        std::condition_variable data_ready;
 
-        if (vm.count("source"))
-            source_port = vm["source"].as<int>();
-        if (vm.count("queue"))
-            queue_length = vm["queue"].as<int>();
-        if (vm.count("threads"))
-            threads_count = vm["threads"].as<int>();
-        if (vm.count("dbname"))
-            ci.dbname = vm["dbname"].as<std::string>();
-        if (vm.count("user"))
-            ci.user = vm["user"].as<std::string>();
-        if (vm.count("password"))
-            ci.password = vm["password"].as<std::string>();
-        if (vm.count("hostaddr"))
-            ci.hostaddr = vm["hostaddr"].as<std::string>();
+        raw_data data(cfg.buff_length());
+        flow_buffer fbuff(cfg.queue_length(), cfg.buff_length());
+        filter flt(cfg.networks(), DUPLICATE_TIMEOUT);
+        container cont;
+
+        std::cout << "fbuff addr is " << &fbuff << " "
+                  << "filter addr is " << &flt << std::endl;
+
+        std::vector<handler> handlers;
+        handlers.reserve(cfg.threads_count());
+        std::vector<std::thread> threads;
+        threads.reserve(cfg.threads_count());
+
+        for (int i = 0; i < cfg.threads_count(); ++i)
+        {
+            //handlers.emplace_back(std::ref(fbuff), std::cref(cfg), i + 1);
+            handlers.emplace_back(fbuff, flt, cont, cfg, i + 1);
+            threads.push_back(std::thread(std::bind(&handler::run, &handlers.back(), std::ref(buffer_access), std::ref(data_ready))));
+        }
+
+        std::unique_lock<std::mutex> data_ready_lock(buffer_access);
+        data_ready_lock.unlock();
+
+        uint32_t t = time(0);
+//        create_table(cfg, std::to_string(t));
+//        for(handler& hdl: handlers)
+//            hdl.set_table(std::to_string(t));
+        std::string file_name("/home/files/scripts/");
+        file_name += std::to_string(t);
+        cont.open_file(file_name, 'w');
+
+        while(!terminate)
+        {
+            socket.receive(boost::asio::buffer(data, cfg.buff_length()));
+            data_ready_lock.lock();
+
+
+            uint32_t new_t = time(0);
+            if((new_t - t) % 300 == 0 & new_t != t)
+            {
+                std::cout << "bufer size " << fbuff.size() << std::endl;
+                file_name = "/home/files/scripts/" + std::to_string(new_t);
+                cont.open_file(file_name, 'w');
+                t = new_t;
+            }
+
+
+//            uint32_t new_t = time(0);
+//            if((new_t - t) % 3600 == 0 & new_t != t)
+//            {
+//                create_table(cfg, std::to_string(new_t));
+//                for(handler& hdl: handlers)
+//                    hdl.set_table(std::to_string(new_t));
+//                t = new_t;
+//            }
+
+            fbuff.swap_head(data);
+            data_ready_lock.unlock();
+            data_ready.notify_one();
+        }
+
+        data_ready_lock.lock();
+        for (handler& h: handlers)
+        {
+            h.terminate();
+        }
+        data_ready.notify_all();
+        data_ready_lock.unlock();
+
+        for (std::thread& t: threads)
+        {
+            t.join();
+        }
+
+        return 0;
     }
     catch (const error &ex)
     {
         std::cerr << ex.what() << '\n';
+        return 1;
     }
-
-    std::mutex buffer_access;
-    std::condition_variable data_ready;
-
-    boost::asio::io_service io_service;
-    udp::endpoint flow_source = udp::endpoint(boost::asio::ip::address_v4::any(), source_port);
-    boost::asio::ip::udp::socket socket = boost::asio::ip::udp::socket(io_service, flow_source);
-    io_service.run();
-
-    raw_data data(MAX_LENGTH);
-    flow_buffer fbuff(queue_length, MAX_LENGTH);
-
-    std::vector<handler> handlers;
-    handlers.reserve(threads_count);
-    std::vector<std::thread> threads;
-    threads.reserve(threads_count);
-
-    for (int i = 0; i < threads_count; ++i)
-    {
-        handlers.emplace_back(std::ref(fbuff), std::ref(buffer_access), std::ref(data_ready), std::ref(ci), MAX_LENGTH, i + 1);
-        threads.push_back(std::thread(std::bind(&handler::run, &handlers.back())));
-    }
-
-    std::unique_lock<std::mutex> data_ready_lock(buffer_access);
-    data_ready_lock.unlock();
-    while(!terminate)
-    {
-        socket.receive(boost::asio::buffer(data, MAX_LENGTH));
-        data_ready_lock.lock();
-        fbuff.swap_head(data);
-        data_ready_lock.unlock();
-        data_ready.notify_one();
-    }
-
-    for (handler& h: handlers)
-    {
-        h.terminate();
-    }
-
-    data_ready_lock.lock();
-    data_ready.notify_all();
-    data_ready_lock.unlock();
-
-    for (std::thread& t: threads)
-    {
-        t.join();
-    }
-
-    return 0;
 }

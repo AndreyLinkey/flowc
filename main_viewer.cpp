@@ -26,6 +26,7 @@ using boost::asio::ip::udp;
 #include <string>
 #include <utility>
 #include <cstdlib>
+#include <tuple>
 
 //http://www.boost.org/doc/libs/1_66_0/doc/html/boost/circular_buffer.html
 
@@ -36,126 +37,122 @@ using boost::asio::ip::udp;
 #include "include/parser.h"
 #include "include/templates.h"
 #include "include/transaction.h"
+#include "include/container.h"
 
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <fstream>
+#include <string>
 
-using namespace boost::program_options;
+//using namespace boost::program_options;
 
-void on_age(int age)
-{
-  std::cout << "On age: " << age << '\n';
-}
+//void on_age(int age)
+//{
+//  std::cout << "On age: " << age << '\n';
+//}
 
-void to_cout(const std::vector<std::string> &v)
-{
-  std::copy(v.begin(), v.end(), std::ostream_iterator<std::string>{
-    std::cout, "\n"});
-}
+//void to_cout(const std::vector<std::string> &v)
+//{
+//  std::copy(v.begin(), v.end(), std::ostream_iterator<std::string>{
+//    std::cout, "\n"});
+//}
 
-void options(int argc, const char *argv[])
-{
-    std::string f_name = "config";
-    try
-    {
-        options_description desc{"Options"};
-        desc.add_options()
-            ("help,h", "Help screen")
-            ("pi,p", value<float>()->default_value(3.14f), "Pi")
-            //("phone", value<int>()->notifier(on_age), "Phone")
-            ("age", value<int>()->notifier(on_age), "Age")
-            ("phone", value<std::vector<std::string>>()->multitoken()->composing(), "Phone");
+//void options(int argc, const char *argv[])
+//{
+//    std::string f_name = "config";
+//    try
+//    {
+//        options_description desc{"Options"};
+//        desc.add_options()
+//            ("help,h", "Help screen")
+//            ("pi,p", value<float>()->default_value(3.14f), "Pi")
+//            //("phone", value<int>()->notifier(on_age), "Phone")
+//            ("age", value<int>()->notifier(on_age), "Age")
+//            ("phone", value<std::vector<std::string>>()->multitoken()->composing(), "Phone");
 
-        variables_map vm2;
+//        variables_map vm2;
 
 
-        std::ifstream ifs{f_name.c_str()};
-        if (ifs)
-           store(parse_config_file(ifs, desc, true), vm2);
+//        std::ifstream ifs{f_name.c_str()};
+//        if (ifs)
+//           store(parse_config_file(ifs, desc, true), vm2);
 
-        variables_map vm;
-        store(parse_command_line(argc, argv, desc), vm);
-        //vm.merge(vm2);
-        //if(vm2.count("pi"))
-        //    vm["pi"] = vm2["pi"];
-        notify(vm2);
+//        variables_map vm;
+//        store(parse_command_line(argc, argv, desc), vm);
+//        //vm.merge(vm2);
+//        //if(vm2.count("pi"))
+//        //    vm["pi"] = vm2["pi"];
+//        notify(vm2);
 
-      if (vm2.count("help"))
-        std::cout << desc << '\n';
-      else
-      {
-        if (vm2.count("age"))
-            std::cout << "Age: " << vm2["age"].as<int>() << '\n';
-        if (vm2.count("pi"))
-            std::cout << "Pi: " << vm2["pi"].as<float>() << '\n';
-        if (vm2.count("phone"))
-        {
-            std::cout << "phone" << '\n';
-            to_cout(vm2["phone"].as<std::vector<std::string>>());
-        }
-      }
-    }
-    catch (const error &ex)
-    {
-      std::cerr << ex.what() << '\n';
-    }
-}
+//      if (vm2.count("help"))
+//        std::cout << desc << '\n';
+//      else
+//      {
+//        if (vm2.count("age"))
+//            std::cout << "Age: " << vm2["age"].as<int>() << '\n';
+//        if (vm2.count("pi"))
+//            std::cout << "Pi: " << vm2["pi"].as<float>() << '\n';
+//        if (vm2.count("phone"))
+//        {
+//            std::cout << "phone" << '\n';
+//            to_cout(vm2["phone"].as<std::vector<std::string>>());
+//        }
+//      }
+//    }
+//    catch (const error &ex)
+//    {
+//      std::cerr << ex.what() << '\n';
+//    }
+//}
 
 int main(int argc, const char *argv[])
 {
-    //options(argc, argv);
+    std::string file_name("/home/files/scripts/");
+    file_name += std::to_string(1532619915);
+    container cont;
+    cont.open_file(file_name, 'r');
 
-    //return 0;
-
-    std::string date_str = "2018-04-01_00:00:00";
-    int dst_addr = boost::asio::ip::make_address_v4("192.168.88.1").to_uint();
-
-
-    time_t t = time(0);
-    struct tm* now = localtime(&t);
-    std::time_t time_cond = std::mktime(now);
-    uint32_t time_cond_int = static_cast<uint32_t>(time_cond);
-
-    connection_info ci;
-    ci.dbname = "flowc";
-    ci.password = "kw2aljks2g1";
-
-    connection db_(ci.to_string());
-
-//    std::tm tm{};
-//    std::istringstream str_stream(date_str);
-//    str_stream >> std::get_time(&tm, "%Y-%m-%d_%T");
-//    std::time_t time_cond = std::mktime(&tm);
-//    storage storage_ = sqlite_storage("db.sqlite");
-//    using namespace sqlite_orm;
-
-    pgsql_transaction tr;
-
-    unsigned int max_id = tr.get_max_id(db_);
-    std::cout << "max id = " << to_string(max_id) << std::endl;
+    std::vector<flow_data> flows;
+    using flow_item = std::tuple<uint32_t, uint32_t, uint32_t>;
+    std::map<flow_item, uint32_t> buffer;
 
     while(true)
     {
-        std::list<flow_data> data = tr.get_by_id(db_, max_id);
-        max_id = tr.get_max_id(db_) + 1;
-        for(flow_data& flow : data)
+        flows = cont.read_flows(256);
+        if(flows.size() == 0)
         {
-            //if(flow.ip_src_addr != 3232258206 || flow.ip_dst_addr == 3232258049)
-            //    continue;
-            if(flow.ip_src_addr != 3232239370 || flow.ip_dst_addr == 3232239361)
-                continue;
-            time_t time(flow.timestamp);
-            std::string rec_str = "record time=" + std::string(std::asctime(std::localtime(&time)));
-            rec_str += "\tip_src_addr=" + boost::asio::ip::address_v4(flow.ip_src_addr).to_string();
-            rec_str += "\tip_dst_addr=" + boost::asio::ip::address_v4(flow.ip_dst_addr).to_string() + " ";
-            rec_str += "\tpostnat_src_addr=" + boost::asio::ip::address_v4(flow.postnat_src_addr).to_string();
-            std::cout << rec_str << std::endl;
+            break;
         }
-        usleep(3 * 1000000);
+
+        for(flow_data flow: flows)
+        {
+            flow_item fi = std::make_tuple(flow.ip_src_addr, flow.ip_dst_addr, flow.postnat_src_addr);
+
+            if(buffer.find(fi) != buffer.end())
+            {
+                ++buffer.at(fi);
+            }
+            else
+            {
+                buffer[fi] = 1;
+            }
+        }
     }
 
-    db_.disconnect();
+    size_t duplicate = 0;
+    for(std::pair<flow_item, uint32_t> flow: buffer)
+    {
+        if(flow.second > 1)
+        {
+            std::cout << "src addr " << std::get<0>(flow.first) << " "
+                      << "dst addr " << std::get<1>(flow.first) << " "
+                         "post nat " << std::get<2>(flow.first) << std::endl;
+            ++duplicate;
+        }
+    }
+    std::cout << "total count " << buffer.size() << " "
+              << "duplicate count " << duplicate << std::endl;
+
 }
 
 
