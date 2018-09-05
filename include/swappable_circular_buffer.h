@@ -1,6 +1,7 @@
 #ifndef SWAPPABLE_CIRCULAR_BUFFER_H
 #define SWAPPABLE_CIRCULAR_BUFFER_H
 
+#include <iomanip>
 #include <iostream>
 #include <vector>
 #include <shared_mutex>
@@ -21,7 +22,7 @@ public:
         }
     }
 
-    int size() const
+    size_t size() const
     {
         //std::shared_lock<std::shared_mutex> lock(buffer_mutex_);
         return size_;
@@ -31,7 +32,9 @@ public:
     {
         //std::lock_guard<std::shared_mutex> lock(buffer_mutex_);
         if(size_ + 1 > buffer_.size())
-            throw std::length_error("overflow");
+        {
+            throw std::length_error("overflow, max buffer_size is " + std::to_string(buffer_.size()));
+        }
 
         std::swap(*head_, other);
         increase_iterator_(head_);
@@ -41,8 +44,10 @@ public:
     void swap_tail(T& other)
     {
         //std::lock_guard<std::shared_mutex> lock(buffer_mutex_);
-        if(size_ - 1 < 0)
+        if(size_ == 0)
+        {
             throw std::out_of_range("empty");
+        }
 
         std::swap(*tail_, other);
         increase_iterator_(tail_);

@@ -9,6 +9,7 @@
 //
 
 #include <array>
+#include <filesystem>
 #include <vector>
 #include <cstdlib>
 #include <iostream>
@@ -34,9 +35,9 @@ using boost::asio::ip::udp;
 #include <unistd.h>
 
 #include "include/swappable_circular_buffer.h"
+#include "defaults.h"
 #include "include/parser.h"
 #include "include/templates.h"
-#include "include/transaction.h"
 #include "include/container.h"
 
 #include <boost/program_options.hpp>
@@ -105,12 +106,79 @@ using boost::asio::ip::udp;
 //    }
 //}
 
+#include <algorithm>
+#include <iterator>
+#include <regex>
+//#include <boost/range/algorithm.hpp>
+//#include <boost/range/adaptors.hpp>
+//using boost::adaptors::filtered;
+//using boost::adaptors::transformed;
+//using boost::adaptors::uniqued;
+using std::copy_if;
+
+//    if(find_if(networks_, [&flow](const network& net){return net.net_addr() == (flow.ip_src_addr & net.net_mask());}) == networks_.end())
+//    {
+//        return false;
+//    }
+
+//    std::vector<uint32_t> erased;
+//    copy(
+//        flow_cache_.left
+//            | filtered([this, min_timestamp](const bimap_cache::left_value_type lval){return lval.second < min_timestamp;})
+//            | transformed([](const bimap_cache::left_value_type lval){return lval.second;})
+//            | uniqued,
+//        std::back_inserter(erased));
+
+//    for_each(erased, [this](int item){flow_cache_.right.erase(item);});
+
 int main(int argc, const char *argv[])
 {
-    std::string file_name("/home/files/scripts/");
-    file_name += std::to_string(1532619915);
+    std::string file_name("/home/files/scripts/flowc/build-flowc-clang-Debug");
+    //file_name += std::to_string(1532619915);
+
+    std::vector<std::filesystem::directory_entry> files;
+    std::filesystem::directory_iterator dir(file_name);
+
+    std::time_t start_from = 1535105228;
+    std::time_t end_at = 1535105234; //time(nullptr);
+    std::time_t file_int = 4;
+
+    copy_if(std::filesystem::begin(dir), std::filesystem::end(dir), std::back_inserter(files),
+        [start_from, end_at, file_int](const std::filesystem::directory_entry& entry)
+        {
+            return entry.status().type() == std::filesystem::file_type::regular &&
+                   entry.path().extension().string() == OUTPUT_EXTENSION &&
+                   std::regex_search(entry.path().stem().string(), std::regex("^\\d{10}\\d*$")) &&
+                   (std::stoi(entry.path().stem().string()) > start_from - file_int &&
+                    std::stoi(entry.path().stem().string()) <= end_at);
+        });
+
+//            | filtered(
+//            | filtered([](const std::filesystem::directory_entry& entry){
+//                return std::regex_search(entry.path().filename().string(), std::regex("^\\d{10}\\d*\\.dmp$"));})
+
+
+    for(const std::filesystem::directory_entry& p: files)
+    {
+        std::cout << std::to_string(std::stoi(p.path().stem())) << " " << p.path().extension() << '\n';
+    }
+
+//    for(const std::filesystem::directory_entry& p: std::filesystem::directory_iterator(file_name))
+//    {
+//        if(p.status().type() != std::filesystem::file_type::regular)
+//            continue;
+//        if(std::regex_search(p.path().filename().string(), std::regex("^\\d{10}\\d*\\.dmp$")))
+//        {
+//            std::cout << p.path().filename() << " " << p.path().extension() << '\n';
+//        }
+
+//    }
+
+    return 0;
+
+
     container cont;
-    cont.open_file(file_name, 'r');
+    cont.open_file(file_name.c_str(), 'r');
 
     std::vector<flow_data> flows;
     using flow_item = std::tuple<uint32_t, uint32_t, uint32_t>;

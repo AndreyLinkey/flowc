@@ -1,18 +1,14 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#include <boost/program_options.hpp>
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <boost/program_options.hpp>
 
+#include "defaults.h"
 #include "network.h"
-#include "transaction.h"
-
-const std::size_t SOURCE_PORT = 2055;
-const std::size_t BUFF_LENGTH = 1472;
-const std::size_t QUEUE_LENGTH = 256;
-const std::size_t THREADS_COUNT = 1;
+//#include "transaction.h"
 
 using namespace boost::program_options;
 
@@ -22,20 +18,30 @@ public:
     //settings(settings&) = delete;
     static settings load_config(std::string config_name);
 
-    unsigned int source_port() const {return source_port_;}
+    unsigned short source_port() const {return source_port_;}
     std::size_t buff_length() const {return buff_length_;}
-    std::size_t queue_length() const {return queue_length_;}
-    unsigned int threads_count() const {return threads_count_;}
-    const connection_info& conn_info() const {return conn_info_;}
+    std::size_t input_queue_length() const {return input_queue_length_;}
+    std::size_t write_queue_length() const {return write_queue_length_;}
+    unsigned short threads_count() const {return threads_count_;}
+    std::time_t flow_timeout() const {return flow_timeout_;}
+    std::time_t new_file_inteval() const {return new_file_inteval_;}
+    std::string log_file_name() const {return log_file_name_;}
+    std::string output_directory() const {return output_directory_;}
+    //const connection_info& conn_info() const {return conn_info_;}
     const std::vector<network>& networks() const {return networks_;}
 
 private:
     settings();
-    unsigned int source_port_;
-    unsigned int buff_length_;
-    unsigned int queue_length_;
-    unsigned int threads_count_;
-    connection_info conn_info_;
+    unsigned short source_port_;
+    size_t buff_length_;
+    size_t input_queue_length_;
+    size_t write_queue_length_;
+    unsigned short threads_count_;
+    std::time_t flow_timeout_;
+    std::time_t new_file_inteval_;
+    std::string log_file_name_;
+    std::string output_directory_;
+    //connection_info conn_info_;
     std::vector<network> networks_;
 
 };

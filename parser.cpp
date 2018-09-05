@@ -98,7 +98,24 @@ std::vector<flow_data> parser::flows()
             for(template_field field: templ.fields)
             {
                 uint16_t offset = flow_offset + field.offset;
-                fields.at(field.type)(data_it + offset, data);
+                switch (field.type)
+                {
+                    case ip_src_addr:
+                        ip_src_addr_parser(data_it + offset, data);
+                        break;
+                    case ip_dst_addr:
+                        ip_dst_addr_parser(data_it + offset, data);
+                        break;
+                    case postnat_src_addr:
+                        postnat_src_addr_parser(data_it + offset, data);
+                        break;
+                    default:
+                    {
+
+                    }
+                }
+
+//                fields.at(field.type)(data_it + offset, data);
             }
             sets_data.push_back(data);
             flow_offset += templ.length;

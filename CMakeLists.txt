@@ -7,6 +7,7 @@ set(SOURCES
     field.cpp
     filter.cpp
     handler.cpp
+    logger.cpp
     network.cpp
     parser.cpp
     settings.cpp
@@ -15,9 +16,11 @@ set(SOURCES
 set(HEADERS
     include/byte_order.h
     include/container.h
+    include/defaults.h
     include/field.h
     include/filter.h
     include/handler.h
+    include/logger.h
     include/network.h
     include/parser.h
     include/settings.h
@@ -34,11 +37,8 @@ include_directories( ${Boost_INCLUDE_DIR} )
 target_link_libraries( ${PROJECT_NAME} LINK_PUBLIC ${Boost_LIBRARIES} )
 target_link_libraries( ${PROJECT_NAME}_viewer LINK_PUBLIC ${Boost_LIBRARIES} )
 
-target_link_libraries (${PROJECT_NAME} pqxx)
-target_link_libraries (${PROJECT_NAME}_viewer pqxx)
-
-target_link_libraries (${PROJECT_NAME} sqlite3)
-target_link_libraries (${PROJECT_NAME}_viewer sqlite3)
+target_link_libraries (${PROJECT_NAME} stdc++fs)
+target_link_libraries (${PROJECT_NAME}_viewer stdc++fs)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

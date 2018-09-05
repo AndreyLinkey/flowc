@@ -7,9 +7,8 @@
 #include <utility>
 #include <boost/circular_buffer.hpp>
 
+#include "defaults.h"
 #include "field.h"
-
-static const size_t TEMPLATE_STORAGE_SIZE = 10;
 
 struct template_field
 {
@@ -24,9 +23,8 @@ struct flow_template
     uint16_t length;
 };
 
-typedef std::shared_ptr<flow_template> flow_template_ptr;
-typedef std::map<uint16_t, flow_template_ptr> templates;
-
+using flow_template_ptr = std::shared_ptr<flow_template>;
+using templates = std::map<uint16_t, flow_template_ptr>;
 
 class template_storage
 {

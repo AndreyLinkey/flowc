@@ -1,5 +1,5 @@
-#ifndef ADD_H
-#define ADD_H
+#ifndef BYTEORDER_H
+#define BYTEORDER_H
 
 #include <cstdint>
 #include <sys/param.h>
@@ -48,4 +48,4 @@ private:
 
 using ByteOrder = ByteOrderTemplate<>;
 
-#endif // ADD_H
+#endif // BYTEORDER_H

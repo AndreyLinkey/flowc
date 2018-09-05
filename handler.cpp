@@ -7,14 +7,9 @@ handler::handler(flow_buffer& buffer, filter& flt, container& cont, const settin
 
 }
 
-void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready)
+void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready) try
 {
-    //connection db(conf_opts_.conn_info().to_string());
-    //pgsql_transaction tr;
     std::unique_lock<std::mutex> data_ready_lock(buffer_access);
-
-    std::cout << "fbuff addr in thread " << idx_ << " is " << &buffer_ << " "
-              << "filter addr in thread " << idx_ << " is " << &flt_ << std::endl;
 
     std::vector<flow_data> flows;
     while(true)
@@ -25,39 +20,34 @@ void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready
             parser p(data_);
             data_ready_lock.unlock();
             std::vector<flow_data> parsed = p.flows();
-            //std::vector<flow_data> flows = p.flows();
             for(flow_data flow: parsed)
             {
                 if(!flt_.check_flow(flow))
                     continue;
                 flows.push_back(flow);
-                //tr.append_data(table_, flow);
             }
             if(flows.size() > RECORDS_COUNT)
             {
                 cont_.store_flows(flows);
                 flows.clear();
-                //tr.execute(db);
             }
             data_ready_lock.lock();
         }
 
         if(process_ == false)
         {
-            break;
+           break;
         }
         data_ready.wait(data_ready_lock);
     }
-    //db.disconnect();
 }
-
-void handler::set_table(const std::string& table_name)
+catch (const std::exception &e)
 {
-    table_ = table_name;
+    log_writer.write_log(e.what());
+    throw e;
 }
 
 void handler::terminate()
 {
-    //std::lock_guard<std::mutex> data_ready_lock(buffer_access_.get());
     process_ = false;
 }

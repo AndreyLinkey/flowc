@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-static const uint16_t TEMPLATE_SET_ID = 2;
+#include "defaults.h"
 
 enum field_type
 {
@@ -20,7 +20,7 @@ enum field_type
 
 struct flow_data
 {
-    //bool operator==(const flow_data& other) const;
+    bool operator==(const flow_data& other) const;
     bool operator<(const flow_data& other) const;
 
     uint32_t timestamp;
@@ -29,8 +29,8 @@ struct flow_data
     uint32_t postnat_src_addr;
 };
 
-typedef std::vector<unsigned char> raw_data;
-typedef void (&field_handler)(raw_data::const_iterator, flow_data&);
+using raw_data = std::vector<unsigned char>;
+using field_handler = void (&)(raw_data::const_iterator, flow_data&);
 
 uint16_t packtwo2int(raw_data::const_iterator data_it);
 uint32_t packfour2int(raw_data::const_iterator data_it);
@@ -39,7 +39,7 @@ void ip_src_addr_parser(raw_data::const_iterator data_it, flow_data& values);
 void ip_dst_addr_parser(raw_data::const_iterator data_it, flow_data& values);
 void postnat_src_addr_parser(raw_data::const_iterator data_it, flow_data& values);
 
-typedef std::map<field_type, field_handler> fields_t;
+using fields_t = std::map<field_type, field_handler>;
 static const fields_t fields
 {
     {ip_src_addr, ip_src_addr_parser},
