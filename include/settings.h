@@ -15,7 +15,6 @@ using namespace boost::program_options;
 class settings
 {
 public:
-    //settings(settings&) = delete;
     static settings load_config(std::string config_name);
 
     unsigned short source_port() const {return source_port_;}
@@ -43,7 +42,6 @@ private:
     std::string output_directory_;
     //connection_info conn_info_;
     std::vector<network> networks_;
-
 };
 
 #endif // SETTINGS_H

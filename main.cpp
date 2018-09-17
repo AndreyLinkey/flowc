@@ -73,7 +73,7 @@ int main() try
         time_t t = time(nullptr);
         std::filesystem::path file_name(cfg.output_directory());
         file_name /= std::to_string(t) + OUTPUT_EXTENSION;
-        cont.open_file(file_name.string(), 'w');
+        cont.create_file(file_name.string());
         log_writer.write_log("flow collector started");
 
         while(!terminate)
@@ -87,7 +87,7 @@ int main() try
                     ((new_t - t) % cfg.new_file_inteval() == 0 & new_t != t))
             {
                 file_name = std::filesystem::path(cfg.output_directory()) / (std::to_string(new_t) + OUTPUT_EXTENSION);
-                cont.open_file(file_name.string(), 'w');
+                cont.create_file(file_name.string());
                 t = new_t;
             }
             fbuff.swap_head(data);

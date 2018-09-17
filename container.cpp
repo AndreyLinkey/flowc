@@ -11,25 +11,30 @@ container::~container()
     file_.close();
 }
 
-void container::open_file(std::string&& file_name, char mode)
+void container::create_file(std::string &&file_name)
 {
-    switch (mode) {
-    case 'w':
+    std::lock_guard<std::mutex> lock(mtx_);
+    flush_buffer_();
+    file_.close();
+    file_.open(file_name, std::ios::out | std::ios::binary);
+
+    container_settings cont_sett;
+    cont_sett.signature = DUMP_SIGNATURE;
+    flow_data fd(cont_sett);
+    store_flow_(fd);
+}
+
+void container::open_file(std::string &&file_name)
+{
+    file_.open(file_name, std::ios::in | std::ios::binary);
+    file_.seekg(0, file_.end);
+    file_len_ = file_.tellg();
+    file_.seekg(0, file_.beg);
+
+    container_settings cont_sett(read_flow_());
+    if(cont_sett.signature != DUMP_SIGNATURE)
     {
-        std::lock_guard<std::mutex> lock(mtx_);
-        flush_buffer_();
-        file_.close();
-        file_.open(file_name, std::ios::out | std::ios::binary);
-    }
-        break;
-    case 'r':
-        file_.open(file_name, std::ios::in | std::ios::binary);
-        file_.seekg(0, file_.end);
-        file_len_ = file_.tellg();
-        file_.seekg(0, file_.beg);
-        break;
-    default:
-        throw std::invalid_argument("unknown mode");
+        throw std::runtime_error(file_name + "is not flowc dump");
     }
 }
 
@@ -55,12 +60,12 @@ std::vector<flow_data> container::read_flows(size_t count)
     std::vector<flow_data> flows;
     flows.reserve(count);
 
-    std::streamoff pos = file_.tellg();
+    //std::streamoff pos = file_.tellg();
 
      while(file_.tellg() < file_len_ && flows.size() < count)
      {
          flows.push_back(read_flow_());
-         pos = file_.tellg();
+         //pos = file_.tellg();
      }
 
      return flows;
@@ -156,5 +161,3 @@ flow_data container::read_flow_()
 
     return flow;
 }
-
-

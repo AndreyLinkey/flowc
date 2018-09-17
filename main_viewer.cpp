@@ -23,6 +23,7 @@ using boost::asio::ip::udp;
 #include <condition_variable>
 #include <thread>
 #include <chrono>
+#include <time.h>
 #include <queue>
 #include <string>
 #include <utility>
@@ -131,6 +132,23 @@ using std::copy_if;
 
 //    for_each(erased, [this](int item){flow_cache_.right.erase(item);});
 
+static std::string timestr_from_timestamp(time_t timestamp)
+{
+    std::tm t = *std::localtime(&timestamp);
+    std::ostringstream ss;
+    ss << std::put_time(&t, "%Y%m%dT%H%M%S");
+    return ss.str();
+}
+
+static time_t timestr_to_timestamp(std::string timestr)
+{
+    std::tm t = {};
+    std::istringstream ss(timestr);
+    ss >> std::get_time(&t, "%Y%m%dT%H%M%S");
+    return mktime(&t);
+}
+
+
 int main(int argc, const char *argv[])
 {
     std::string file_name("/home/files/scripts/flowc/build-flowc-clang-Debug");
@@ -139,18 +157,21 @@ int main(int argc, const char *argv[])
     std::vector<std::filesystem::directory_entry> files;
     std::filesystem::directory_iterator dir(file_name);
 
-    std::time_t start_from = 1535105228;
-    std::time_t end_at = 1535105234; //time(nullptr);
     std::time_t file_int = 4;
+    std::string start_from = timestr_from_timestamp(1535105228 - file_int);
+    std::string end_at = timestr_from_timestamp(1535105234); //time(nullptr);
+
+    std::cout << std::to_string(timestr_to_timestamp(start_from)) << " "
+              << std::to_string(timestr_to_timestamp(end_at)) << std::endl;
 
     copy_if(std::filesystem::begin(dir), std::filesystem::end(dir), std::back_inserter(files),
-        [start_from, end_at, file_int](const std::filesystem::directory_entry& entry)
+        [start_from, end_at](const std::filesystem::directory_entry& entry)
         {
             return entry.status().type() == std::filesystem::file_type::regular &&
                    entry.path().extension().string() == OUTPUT_EXTENSION &&
-                   std::regex_search(entry.path().stem().string(), std::regex("^\\d{10}\\d*$")) &&
-                   (std::stoi(entry.path().stem().string()) > start_from - file_int &&
-                    std::stoi(entry.path().stem().string()) <= end_at);
+                   std::regex_search(entry.path().stem().string(), std::regex("^\\d{8}T\\d{6}$")) &&
+                   (entry.path().stem().string() > start_from &&
+                    entry.path().stem().string() <= end_at);
         });
 
 //            | filtered(
@@ -178,7 +199,7 @@ int main(int argc, const char *argv[])
 
 
     container cont;
-    cont.open_file(file_name.c_str(), 'r');
+    cont.open_file(file_name.c_str());
 
     std::vector<flow_data> flows;
     using flow_item = std::tuple<uint32_t, uint32_t, uint32_t>;

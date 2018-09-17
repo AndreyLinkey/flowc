@@ -15,6 +15,7 @@ void logger::write_log(std::string message)
     std::string formatted_message(t_buff);
     formatted_message += " " + message + '\n';
 
+    std::cout << formatted_message;
     std::fstream file;
     try
     {
@@ -25,13 +26,12 @@ void logger::write_log(std::string message)
             err += log_name_;
             throw std::invalid_argument(err);
         }
-        std::cout << formatted_message;
         file.write(formatted_message.c_str(), formatted_message.size());
         file.close();
     }
 
     catch (std::exception& e)
     {
-        std::cout << "Unable to write log: " << e.what() << std::endl;
+        std::cout << std::string(t_buff) + " Unable to write log: " << e.what() << std::endl;
     }
 }
