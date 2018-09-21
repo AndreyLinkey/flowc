@@ -24,8 +24,8 @@ public:
     unsigned short threads_count() const {return threads_count_;}
     std::time_t flow_timeout() const {return flow_timeout_;}
     std::time_t new_file_inteval() const {return new_file_inteval_;}
-    std::string log_file_name() const {return log_file_name_;}
-    std::string output_directory() const {return output_directory_;}
+    const std::string log_file_name() const {return log_file_name_;}
+    const std::string output_directory() const {return output_directory_;}
     //const connection_info& conn_info() const {return conn_info_;}
     const std::vector<network>& networks() const {return networks_;}
 

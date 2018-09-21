@@ -24,6 +24,7 @@ const std::uint32_t RECORDS_COUNT = 512;
 const std::uint16_t TEMPLATE_SET_ID = 2;
 const std::size_t TEMPLATE_STORAGE_SIZE = 10;
 
+const std::string FILE_NAME_DATETIME_FORMAT = "%Y%m%dT%H%M%S";
 const std::uint32_t DUMP_SIGNATURE = 1668770918;
 
 #endif // DEFAULTS_H

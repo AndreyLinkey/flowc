@@ -1,127 +1,768 @@
 
-#include <csignal>
-#include <ctime>
-#include <exception>
+//#include <array>
+//#include <filesystem>
+//#include <cstdlib>
+//#include <iostream>
+//#include <boost/asio.hpp>
+//#include <iostream>
+//#include <iomanip>
+//#include <algorithm>
+
+//using boost::asio::ip::udp;
+
+//#include <condition_variable>
+//#include <thread>
+//#include <chrono>
+//#include <time.h>
+//#include <queue>
+//#include <string>
+//#include <utility>
+//#include <cstdlib>
+//#include <tuple>
+
+//#include <boost/circular_buffer.hpp>
+//#include <unistd.h>
+
+//#include "include/swappable_circular_buffer.h"
+//#include "include/defaults.h"
+//#include "include/parser.h"
+//#include "include/templates.h"
+//#include "include/container.h"
+//#include "include/common.h"
+//#include "include/settings.h"
+
+//#include <boost/program_options.hpp>
+//#include <iostream>
+//#include <fstream>
+//#include <string>
+
+//#include <algorithm>
+//#include <iterator>
+//#include <regex>
+
+//using std::copy_if;
+
+//#include  <boost/range/iterator_range.hpp>
+//#include <boost/range/algorithm.hpp>
+//#include <boost/range/adaptors.hpp>
+//using boost::adaptors::filtered;
+//using boost::adaptors::transformed;
+//using boost::adaptors::uniqued;
+
+//using boost::range::copy;
+//using boost::range::sort;
+
+#include <algorithm>
 #include <filesystem>
-#include <functional>
-#include <mutex>
-#include <string>
-#include <thread>
 #include <vector>
-#include <boost/asio.hpp>
 
+#include "include/common.h"
 #include "include/container.h"
-#include "include/defaults.h"
-#include "include/handler.h"
-#include "include/logger.h"
-#include "include/parser.h"
+#include "include/field.h"
 #include "include/settings.h"
-#include "include/swappable_circular_buffer.h"
-#include "include/templates.h"
 
-using boost::asio::io_service;
-using boost::asio::ip::udp;
 
-static bool terminate = false;
-static udp::socket* socket_ptr = nullptr;
-
-void sig_handler(int signal)
+std::vector<flow_data>::iterator filter_timestamp(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t from, uint32_t to)
 {
-    terminate = true;
-    if(socket_ptr != nullptr)
+    return std::remove_if(begin, end, [&from, &to](flow_data& flow){return flow.timestamp < from
+                                                                     || flow.timestamp >= to;});
+}
+
+std::vector<flow_data>::iterator filter_ip_src_addr(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t value)
+{
+    return std::remove_if(begin, end, [&value](flow_data& flow){return flow.ip_src_addr != value;});
+}
+
+std::vector<flow_data>::iterator filter_ip_dst_addr(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t value)
+{
+    return std::remove_if(begin, end, [&value](flow_data& flow){return flow.ip_dst_addr != value;});
+}
+
+std::vector<flow_data>::iterator filter_postnat_src_addr(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t value)
+{
+    return std::remove_if(begin, end, [&value](flow_data& flow){return flow.postnat_src_addr != value;});
+}
+
+int main(int argc, const char *argv[])
+{
+    std::string directory = "/home/files";
+    const std::string start_from = "20180920T160100";
+    const std::string end_at = "20180920T160500";
+    const std::string ip_src_addr = ipnum_to_ipstr(0);
+    const std::string ip_dst_addr = "89.249.27.132";
+    const std::string postnat_src_addr = "0.0.0.0";
+
+    if(directory == "")
     {
-        socket_ptr -> shutdown(boost::asio::ip::udp::socket::shutdown_receive);
+        settings cfg = settings::load_config(CONFIG_NAME);
+        directory = cfg.output_directory();
+    }
+
+    std::vector<std::filesystem::directory_entry> files;
+    std::filesystem::directory_iterator dir(directory);
+    copy_if(std::filesystem::begin(dir), std::filesystem::end(dir), std::back_inserter(files),
+        [](const std::filesystem::directory_entry& entry)
+        {
+            return entry.status().type() == std::filesystem::file_type::regular &&
+                   entry.path().extension().string() == OUTPUT_EXTENSION &&
+                   std::regex_search(entry.path().stem().string(), std::regex("^\\d{8}T\\d{6}$"));
+        });
+
+    std::sort(files.begin(), files.end(), [](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry entry2)
+        {return entry1.path().stem().string() < entry2.path().stem().string();});
+
+    std::vector<std::filesystem::directory_entry>::iterator first_file =
+    std::max_element(files.begin(), files.end(), [&start_from](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry entry2)
+        {return entry1.path().stem().string() <= start_from &&
+                entry2.path().stem().string() <= start_from &&
+                entry1.path().stem().string() < entry2.path().stem().string();});
+
+    std::vector<std::filesystem::directory_entry>::iterator last_file =
+    std::max_element(first_file, files.end(), [&end_at](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry entry2)
+        {return entry1.path().stem().string() < end_at &&
+                entry2.path().stem().string() < end_at &&
+                entry1.path().stem().string() < entry2.path().stem().string();});
+
+    std::vector<flow_data> result;
+    for(std::vector<std::filesystem::directory_entry>::iterator it = first_file; it <= last_file; ++it)
+    {
+        container cont;
+        cont.open_file(it->path().string());
+
+        std::vector<flow_data> flows;
+        while(true)
+        {
+            flows = cont.read_flows(256);
+            if(flows.size() == 0)
+            {
+                break;
+            }
+            std::vector<flow_data>::iterator filter_end = filter_timestamp(flows.begin(), flows.end(),
+                                                                           timestr_to_timestamp(start_from), timestr_to_timestamp(end_at));
+            if(ipstr_to_ipnum(ip_src_addr) != 0)
+                filter_end = filter_ip_src_addr(flows.begin(), filter_end, ipstr_to_ipnum(ip_src_addr));
+            if(ipstr_to_ipnum(ip_dst_addr) != 0)
+                filter_end = filter_ip_dst_addr(flows.begin(), filter_end, ipstr_to_ipnum(ip_dst_addr));
+            if(ipstr_to_ipnum(postnat_src_addr) != 0)
+                filter_end = filter_postnat_src_addr(flows.begin(), filter_end, ipstr_to_ipnum(postnat_src_addr));
+            //filter_end = filter_postnat_our(flows.begin(), filter_end);
+            flows.erase(filter_end, flows.end());
+
+            result.reserve(result.size() + static_cast<unsigned long>(distance(flows.begin(),flows.end())));
+            result.insert(result.end(), flows.begin(), flows.end());
+        }
+
+
+        std::cout << "need: " << it->path().stem() << " " << it->path().extension() << std::endl;
+    }
+
+
+    for(flow_data& flow: result)
+    {
+        std::cout << timestamp_to_timestr(flow.timestamp) << " "
+                  << " src addr=" << ipnum_to_ipstr(flow.ip_src_addr)
+                  << " dst addr=" << ipnum_to_ipstr(flow.ip_dst_addr)
+                  << " post nat=" << ipnum_to_ipstr(flow.postnat_src_addr) << std::endl;
     }
 }
 
-int main() try
+
+
+
+//    std::time_t file_int = 4;
+
+//    boost::iterator_range<std::filesystem::directory_iterator> it =
+//    boost::make_iterator_range(std::filesystem::begin(dir), std::filesystem::end(dir));
+
+//    copy(
+//        it
+//            | filtered([](const std::filesystem::directory_entry& entry) {
+//                return entry.status().type() == std::filesystem::file_type::regular &&
+//                       entry.path().extension().string() == OUTPUT_EXTENSION &&
+//                       std::regex_search(entry.path().stem().string(), std::regex("^\\d{8}T\\d{6}$"));}),
+//        std::back_inserter(files));
+
+//    std::filesystem::directory_iterator beg =
+
+
+//    std::for_each(std::filesystem::begin(dir), std::filesystem::end(dir),
+//        [](const std::filesystem::directory_entry& entry)
+//        {
+//            std::cout << entry.path() << std::endl;
+//        });
+
+/*
+void data_preparation_thread()
 {
-    settings cfg = settings::load_config(CONFIG_NAME);
-    log_writer.set_log_name(cfg.log_file_name());
+    udp::socket& socket_;
+    boost::asio::io_service&  io_service_;
+    udp::endpoint sender_endpoint_;
 
-    io_service srv;
-    udp::endpoint flow_source(boost::asio::ip::address_v4::any(), cfg.source_port());
-    udp::socket socket(srv, flow_source);
-    socket_ptr = &socket;
-    srv.run();
-
-    std::signal(SIGINT, sig_handler);
-    std::signal(SIGTERM, sig_handler);
-
-    std::mutex buffer_access;
-    std::condition_variable data_ready;
-
-    raw_data data(cfg.buff_length());
-    flow_buffer fbuff(cfg.input_queue_length(), cfg.buff_length());
-    filter flt(cfg.networks(), cfg.flow_timeout());
-    container cont(cfg.write_queue_length());
-    std::thread cont_thr = std::thread(std::bind(&container::run, &cont));
-
-    std::vector<handler> handlers;
-    handlers.reserve(cfg.threads_count());
-    std::vector<std::thread> threads;
-    threads.reserve(cfg.threads_count());
-
-    for(unsigned int i = 0; i < cfg.threads_count(); ++i)
+    while(true) //more_data_to_prepare())
     {
-        handlers.emplace_back(fbuff, flt, cont, cfg, i + 1);
-        threads.emplace_back(std::bind(&handler::run, &handlers.back(), std::ref(buffer_access), std::ref(data_ready)));
+        data_chunk const data=prepare_data();
+        std::lock_guard<std::mutex> lk(mut);
+        data_queue.push(data);
+        data_cond.notify_one();
     }
+}
+
+void data_processing_thread()
+{
+    while(true)
+    {
+    std::unique_lock<std::mutex> lk(mut);
+    data_cond.wait(
+        lk,[]{return !data_queue.empty();});
+    data_chunk data=data_queue.front();
+    data_queue.pop();
+    lk.unlock();
+    process(data);
+    if(is_last_chunk(data))
+        break;
+    }
+}
+*/
+
+
+/*
+class handler
+{
+public:
+  handler(boost::asio::io_service& io_serv, udp::socket& flow_socket)
+    : io_service_(io_serv), socket_(flow_socket)
+  {
+    //do_receive();
+     // io_service_.run();
+  }
+
+  void do_receive()
+  {
+    std::cout << "thread" << std::endl;
+    socket_.async_receive_from(
+        boost::asio::buffer(data_, max_length), sender_endpoint_,
+        [this](boost::system::error_code ec, std::size_t bytes_recvd)
+        {
+        std::cout << "lambda" << std::endl;
+
+          if (!ec && bytes_recvd > 0)
+          {
+              //for(unsigned char& byte : data_)
+              for(int i = 0; i < bytes_recvd; ++i)
+                  std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data_[i]; //(int)byte;
+              std::cout << std::endl;
+          }
+          do_receive();
+        });
+  }
+
+private:
+  udp::socket& socket_;
+  boost::asio::io_service&  io_service_;
+  udp::endpoint sender_endpoint_;
+  enum { max_length = 1024 };
+  std::array<unsigned char, max_length> data_;
+};
+
+void thread_function(handler &hdl)
+{
+     hdl.do_receive();
+}
+
+int main(int argc, char* argv[])
+{
+    int port = 2055;
+    boost::asio::io_service io_service;
+    udp::socket flow_socket(io_service, udp::endpoint(boost::asio::ip::address_v4::any(), port));
+
+
+    handler h1(io_service, flow_socket);
+    handler h2(io_service, flow_socket);
+    std::thread t1(std::bind(&handler::do_receive, h1));
+    std::thread t2(std::bind(&handler::do_receive, h2));
+
+    //std::thread t1(thread_function, std::ref(h1));
+    //std::thread t2(thread_function, std::ref(h2));
+
+    io_service.run();
+
+
+    t1.join();
+    t2.join();
+
+//std::thread t(thread_function, std::ref(h));
+//std::thread t(std::bind(&handler::process, &h));
+
+
+
+    return 0;
+}*/
+
+/*
+const unsigned int IPFIX_HDR_LENGTH = 16;
+
+
+std::mutex mut;
+//std::queue<data_chunk> data_queue;
+std::condition_variable data_cond;
+
+
+void print_buffer(boost::asio::streambuf buff) {
+    for(auto& byte : buff.data())
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    std::cout << std::endl;
+}
+
+void print_buffer(std::vector<unsigned char> buff) {
+    for(unsigned char& byte : buff)
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    std::cout << std::endl;
+}
+*/
+
+/*
+int main()
+{
+    //std::array<unsigned char, IPFIX_HDR_LENGTH> hdr_buff;
+
+    boost::asio::io_service io_service;
+    int port = 2055;
+    udp::endpoint flow_source = udp::endpoint(boost::asio::ip::address_v4::any(), port);
+    boost::asio::ip::udp::socket socket = boost::asio::ip::udp::socket(io_service, flow_source);
+    io_service.run();
+
+
+    boost::asio::streambuf hdr_buff;
+    hdr_buff.prepare(IPFIX_HDR_LENGTH);
+
+    // reserve 512 bytes in output sequence
+    //boost::asio::streambuf::mutable_buffers_type hdr_buff = b.prepare(IPFIX_HDR_LENGTH);
+
+    // received data is "committed" from output sequence to input sequence
+    //b.commit(n);
+
+
+
+    //socket.receive_from(boost::asio::buffer(hdr_buff, IPFIX_HDR_LENGTH), flow_source);
+    socket.receive(hdr_buff);
+    print_buffer(hdr_buff);
+
+    int version = (hdr_buff[0] << 8) | hdr_buff[1];
+    int length = (hdr_buff[2] << 8) | hdr_buff[3];
+    std::cout << std::dec << version << " " << length << std::endl;
+
+    std::cout << socket.available() << std::endl;
+
+
+    std::vector<unsigned char> buff;
+    length -= IPFIX_HDR_LENGTH;
+    buff.resize(length);
+    //socket.receive_from(boost::asio::buffer(buff.data(), length), flow_source);
+    socket.receive(boost::asio::buffer(buff.data(), length));
+
+    //buff.resize(length);
+    print_buffer(buff);
+
+
+//    try
+//    {
+//        int i = 0;
+//        while(i < 10000000)
+//        {
+//            socket.async_receive_from(boost::asio::buffer(handler.data(), MAX_LENGTH), flow_source, handler);
+//            i++;
+//        }
+//    }
+//    catch (std::exception& e)
+//    {
+//      std::cerr << "Exception: " << e.what() << "\n";
+//    }
+
+
+//    while(True)
+//    {
+//        data_chunk const data=prepare_data();
+//        std::lock_guard<std::mutex> lk(mut);
+//        data_queue.push(data);
+//        data_cond.notify_one();
+//    }
+}*/
+
+//void data_processing_thread()
+//{
+//    while(true)
+//    {
+//        std::unique_lock<std::mutex> lk(mut);
+//        data_cond.wait(lk, []{return !data_queue.empty();});
+//        data_chunk data=data_queue.front();
+//        data_queue.pop();
+//        lk.unlock();
+//        process(data);
+//        if(is_last_chunk(data))
+//            break;
+//    }
+//}
+
+
+/*
+
+class handler
+{
+public:
+    handler(std::condition_variable& task_done, int interval)
+        : task_done_(task_done), interval_(interval)
+    {}
+
+    void process()
+    {
+        while(true)
+        {
+            std::unique_lock<std::mutex> lk(handler_mutex_);
+            std::cout << interval_ << " Waiting... \n" << std::endl;
+            data_ready_.wait(lk, [this](){return notified_;});
+            is_busy_ = true;
+            std::cout << interval_ << " Signal accuired, performing some actions... \n" << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(interval_ * 1000));
+            std::cout << interval_ << " Notified! \n" << std::endl;
+            is_busy_ = false;
+            task_done_.notify_all();
+        }
+    }
+
+    void notify()
+    {
+        notified_ = true;
+        data_ready_.notify_one();
+        notified_ = false;
+    }
+
+    bool is_busy() const
+    {
+        return is_busy_;
+    }
+
+private:
+    int interval_;
+    bool notified_ = false;
+    bool is_busy_ = false;
+    std::condition_variable data_ready_;
+    std::condition_variable& task_done_;
+    std::mutex handler_mutex_;
+};
+
+
+
+void thread_function(handler &hdl)
+{
+     hdl.process();
+}
+
+int main(int argc, char* argv[])
+{
+    std::mutex mtx;
+    std::unique_lock<std::mutex> lk(mtx);
+    std::condition_variable task_done;
+
+    handler h1(task_done, 1);
+    handler h2(task_done, 2);
+    handler h3(task_done, 3);
+    handler h4(task_done, 4);
+    std::vector<handler> hdls;
+    hdls.push_back(h1);
+    hdls.push_back(h2);
+    hdls.push_back(h3);
+    hdls.push_back(h4);
+
+    //const std::array<handler&, 4> hdls{handler(task_done, 1), handler(task_done, 2), handler(task_done, 3), handler(task_done, 4)};
+    std::vector<std::thread> trds;
+    for(const handler& hdl : hdls)
+    {
+        std::thread t(std::bind(&handler::process, hdl));
+        std::cout << "Thread started \n" << std::endl;
+        trds.push_back(t);
+    }
+
+    //std::thread t(thread_function, std::ref(h));
+    //std::thread t(std::bind(&handler::process, &h));
+
+    while(true)
+    {
+        if(!std::any_of(hdls.begin(), hdls.end(), [](const handler& hdl){return hdl.is_busy();}))
+        {
+            std::cout << "Handler is busy, whaiting... \n" << std::endl;
+            task_done.wait(lk);
+        }
+        for(handler& hdl : hdls)
+            if(!hdl.is_busy())
+            {
+                std::cout << "Sending notification \n" << std::endl;
+                hdl.notify();
+                std::cout << "Notification sent \n" << std::endl;
+                break;
+            }
+    }
+
+    for(std::thread& trd : trds)
+        trd.join();
+
+}
+*/
+/*
+class IpfixHandler
+{
+public:
+
+    int operator()(boost::system::error_code ec, std::size_t bytes_recvd) const
+    {
+        std::cout << "received  " << std::endl;
+        if (!ec && bytes_recvd > 0)
+        {
+          std::cout << bytes_recvd << ": " << std::endl;
+
+          for(int i = 0 ; i < bytes_recvd; ++i ){
+                if(i > 0 && i % 16 == 0)
+                    std::cout << std::endl;
+                else if(i > 0 && i % 8 == 0)
+                    std::cout << "  ";
+                std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data_[i] << ' ';
+          }
+          std::cout << std::endl;
+         }
+    }
+    std::array<unsigned char, MAX_LENGTH>& data()
+    {
+        return data_;
+    }
+private:
+    std::array<unsigned char, MAX_LENGTH> data_;
+    boost::asio::ip::udp::endpoint sender_endpoint_;
+};
+
+
+
+int main(int argc, char* argv[])
+{
+    boost::asio::io_service io_service;
+    int port = 2055;
+    udp::endpoint flow_source = udp::endpoint(boost::asio::ip::address_v4::any(), port);
+    boost::asio::ip::udp::socket socket = boost::asio::ip::udp::socket(io_service, flow_source);
+    IpfixHandler handler = IpfixHandler();
+
+    io_service.run();
 
     try
     {
-        time_t t = time(nullptr);
-        std::filesystem::path file_name(cfg.output_directory());
-        file_name /= std::to_string(t) + OUTPUT_EXTENSION;
-        cont.create_file(file_name.string());
-        log_writer.write_log("flow collector started");
-
-        while(!terminate)
+        int i = 0;
+        while(i < 10000000)
         {
-            if(!socket.receive(boost::asio::buffer(data, cfg.buff_length())))
-                continue;
-            std::lock_guard<std::mutex> lock(buffer_access);
-            time_t new_t = time(nullptr);
-
-            if((new_t > t + cfg.new_file_inteval()) |
-                    ((new_t - t) % cfg.new_file_inteval() == 0 & new_t != t))
-            {
-                file_name = std::filesystem::path(cfg.output_directory()) / (std::to_string(new_t) + OUTPUT_EXTENSION);
-                cont.create_file(file_name.string());
-                t = new_t;
-            }
-            fbuff.swap_head(data);
-            data_ready.notify_one();
+            socket.async_receive_from(boost::asio::buffer(handler.data(), MAX_LENGTH), flow_source, handler);
+            i++;
         }
     }
-    catch (const std::exception &e)
+    catch (std::exception& e)
     {
-        log_writer.write_log(e.what());
+      std::cerr << "Exception: " << e.what() << "\n";
     }
 
-    std::unique_lock<std::mutex> data_ready_lock(buffer_access);
-    for (handler& h: handlers)
-    {
-        h.terminate();
-    }
-    data_ready.notify_all();
-    data_ready_lock.unlock();
+    return 0;
+} */
 
-    for (std::thread& t: threads)
-    {
-        t.join();
-    }
+//  try
+//  {
+////    if (argc != 2)
+////    {
+////      std::cerr << "Usage: async_udp_echo_server <port>\n";
+////      return 1;
+////    }
 
-    cont.terminate();
-    cont_thr.join();
-    log_writer.write_log("flow collector terminated");
+//    boost::asio::io_service io_service;
+//    int port = 2055;
+//    server s(io_service, port);
 
-    return (terminate) ? 0 : 1;
+//    io_service.run();
+//  }
+//  catch (std::exception& e)
+//  {
+//    std::cerr << "Exception: " << e.what() << "\n";
+//  }
+
+//  return 0;
+
+
+//class server
+//{
+//  public:
+//    server(boost::asio::io_service& io_service, short port)
+//      : socket_(io_service, udp::endpoint(boost::asio::ip::address_v4::any(), port))
+//    {
+//      //socket_.open(udp::v4());
+//      do_receive();
+//    }
+
+//    void do_receive()
+//    {
+//      std::cout << "do_receive" << std::endl;
+//      socket_.async_receive_from(
+//      boost::asio::buffer(data_, max_length), sender_endpoint_,
+//        [this](boost::system::error_code ec, std::size_t bytes_recvd)
+//        {
+//          std::cout << "received" << std::endl;
+//          if (!ec && bytes_recvd > 0)
+//          {
+//            std::cout << bytes_recvd << ": " << std::endl;
+
+//            for(int i = 0 ; i < bytes_recvd; ++i ){
+//                  if(i > 0 && i % 16 == 0)
+//                      std::cout << std::endl;
+//                  else if(i > 0 && i % 8 == 0)
+//                      std::cout << "  ";
+//                  std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data_[i] << ' ';
+//            }
+//            std::cout << std::endl;
+//            do_receive();
+//          }
+//          else
+//          {
+//            do_receive();
+//          }
+//        });
+//    }
+
+//  private:
+//    boost::asio::ip::udp::socket socket_;
+//    boost::asio::ip::udp::endpoint sender_endpoint_;
+//    enum { max_length = 1024 };
+//    unsigned char data_[max_length];
+//};
+
+/*
+using namespace boost::asio;
+io_service service;
+ip::udp::socket sock(service);
+boost::asio::ip::udp::endpoint sender_ep;
+char buff[512];
+void on_read(const boost::system::error_code & err, std::size_t read_bytes)
+ {
+    std::cout << "do_receive" << std::endl;
+    std::cout << "read " << read_bytes << std::endl;
+    sock.async_receive_from(buffer(buff), sender_ep, on_read);
 }
-catch (const std::exception &e)
+
+int main(int argc, char* argv[])
 {
-    log_writer.write_log(e.what());
-    return 1;
+    ip::udp::endpoint ep(boost::asio::ip::address_v4::any(), 2055 );
+    sock.open(ep.protocol());
+    sock.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+    //sock.set_option(boost::asio::ip::udp::socket::implementation_type);
+    sock.bind(ep);
+    sock.async_receive_from(buffer(buff, 512), sender_ep, on_read);
+    service.run();
+}*/
+
+/*
+#include<sys/socket.h>
+#define BUFLEN 512  //Max length of buffer
+#define PORT 2055
+
+void die(char *s)
+{
+    perror(s);
+    exit(1);
 }
 
+int main(int argc, char* argv[])
+{
+    struct sockaddr_in si_me, si_other;
 
+    int s, i, recv_len;
+    socklen_t slen = sizeof(si_other);
+    char buf[BUFLEN];
+
+    //create a UDP socket
+    if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+    {
+        die("socket");
+    }
+
+    // zero out the structure
+    memset((char *) &si_me, 0, sizeof(si_me));
+
+    si_me.sin_family = AF_INET;
+    si_me.sin_port = htons(PORT);
+    si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    //bind socket to port
+    if( bind(s , (struct sockaddr*)&si_me, sizeof(si_me) ) == -1)
+    {
+        die("bind");
+    }
+
+    //keep listening for data
+    while(1)
+    {
+        printf("Waiting for data...");
+        fflush(stdout);
+
+        //try to receive some data, this is a blocking call
+        if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
+        {
+            die("recvfrom()");
+        }
+
+        //print details of the client/peer and the data received
+        printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+        printf("Data: %s\n" , buf);
+    }
+
+    close(s);
+    return 0;
+
+
+}
+*/
+
+//#include <iostream>
+
+//using namespace std;
+
+//int main()
+//{
+//    cout << "Hello World!" << endl;
+//    return 0;
+//}
+
+/*
+std::vector<int> data({16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+int data_index = 0;
+
+
+void read_data(void* buf_ptr, int length)
+{
+
+    for(int i = data_index; i < data_index + length; ++data_index)
+    {
+        *(int*)buf_ptr = data[i];
+        buf_ptr++;
+    }
+}
+
+int handler(boost::system::error_code ec, std::size_t bytes_recvd)
+{
+
+}
+
+int main(int argc, char* argv[])
+{
+    expandable_buffer<int, MAX_LENGTH> ex_buf;
+    read_data(ex_buf.begin(), MAX_LENGTH);
+    ex_buf.print();
+
+    boost::asio::io_service io_service;
+    int port = 2055;
+    udp::endpoint flow_source = udp::endpoint(boost::asio::ip::address_v4::any(), port);
+    boost::asio::ip::udp::socket socket = boost::asio::ip::udp::socket(io_service, flow_source);
+    io_service.run();
+
+    socket.async_receive_from(boost::asio::buffer((void*)ex_buf.begin(), MAX_LENGTH), flow_source, handler);
+}
+*/

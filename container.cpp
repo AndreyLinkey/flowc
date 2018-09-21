@@ -31,10 +31,15 @@ void container::open_file(std::string &&file_name)
     file_len_ = file_.tellg();
     file_.seekg(0, file_.beg);
 
+    if(file_len_ < FLOW_RECORD_LENGTH)
+    {
+        throw std::runtime_error(file_name + " has no data");
+    }
+
     container_settings cont_sett(read_flow_());
     if(cont_sett.signature != DUMP_SIGNATURE)
     {
-        throw std::runtime_error(file_name + "is not flowc dump");
+        throw std::runtime_error(file_name + " is not flowc dump");
     }
 }
 
