@@ -9,22 +9,24 @@
 #include "field.h"
 #include "templates.h"
 
-static const uint16_t IPFIX_VERSION = 10;
-static const uint16_t IPFIX_HEADER_LENGTH = 16;
-static const uint16_t IPFIX_VERSION_OFFSET = 0;
-static const uint16_t IPFIX_LENGTH_OFFSET = 2;
-static const uint16_t IPFIX_TIMESTAMP_OFFSET = 4;
-static const uint16_t IPFIX_SET_HEADER_LENGTH = 4;
-static const uint16_t IPFIX_SET_ID_OFFSET = 0;
-static const uint16_t IPFIX_SET_LENGTH_OFFSET = 2;
+const uint16_t IPFIX_VERSION = 10;
+const uint16_t IPFIX_HEADER_LENGTH = 16;
+const uint16_t IPFIX_VERSION_OFFSET = 0;
+const uint16_t IPFIX_LENGTH_OFFSET = 2;
+const uint16_t IPFIX_TIMESTAMP_OFFSET = 4;
+const uint16_t IPFIX_SET_HEADER_LENGTH = 4;
+const uint16_t IPFIX_SET_ID_OFFSET = 0;
+const uint16_t IPFIX_SET_LENGTH_OFFSET = 2;
 
-static const uint16_t IPFIX_TEMPLATE_HEADER_LENGTH = 4;
-static const uint16_t IPFIX_TEMPLATE_ID_OFFSET = 0;
-static const uint16_t IPFIX_TEMPLATE_COUNT_OFFSET = 2;
+const uint16_t IPFIX_TEMPLATE_HEADER_LENGTH = 4;
+const uint16_t IPFIX_TEMPLATE_ID_OFFSET = 0;
+const uint16_t IPFIX_TEMPLATE_COUNT_OFFSET = 2;
 
-static const uint16_t IPFIX_TEMPLATE_FIELD_LENGTH = 4;
-static const uint16_t IPFIX_TEMPLATE_FIELD_TYPE_OFFSET = 0;
-static const uint16_t IPFIX_TEMPLATE_FIELD_LENGTH_OFFSET = 2;
+const uint16_t IPFIX_TEMPLATE_FIELD_LENGTH = 4;
+const uint16_t IPFIX_TEMPLATE_FIELD_TYPE_OFFSET = 0;
+const uint16_t IPFIX_TEMPLATE_FIELD_LENGTH_OFFSET = 2;
+
+const std::uint16_t TEMPLATE_SET_ID = 2;
 
 
 class parser

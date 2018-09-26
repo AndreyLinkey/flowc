@@ -8,7 +8,6 @@
 
 #include "defaults.h"
 #include "network.h"
-//#include "transaction.h"
 
 using namespace boost::program_options;
 
@@ -17,7 +16,8 @@ class settings
 public:
     static settings load_config(std::string config_name);
 
-    unsigned short source_port() const {return source_port_;}
+    unsigned short flowcd_port() const {return flowcd_port_;}
+    unsigned short flowc_port() const {return flowc_port_;}
     std::size_t buff_length() const {return buff_length_;}
     std::size_t input_queue_length() const {return input_queue_length_;}
     std::size_t write_queue_length() const {return write_queue_length_;}
@@ -26,12 +26,12 @@ public:
     std::time_t new_file_inteval() const {return new_file_inteval_;}
     const std::string log_file_name() const {return log_file_name_;}
     const std::string output_directory() const {return output_directory_;}
-    //const connection_info& conn_info() const {return conn_info_;}
     const std::vector<network>& networks() const {return networks_;}
 
 private:
     settings();
-    unsigned short source_port_;
+    unsigned short flowcd_port_;
+    unsigned short flowc_port_;
     size_t buff_length_;
     size_t input_queue_length_;
     size_t write_queue_length_;
@@ -40,7 +40,6 @@ private:
     std::time_t new_file_inteval_;
     std::string log_file_name_;
     std::string output_directory_;
-    //connection_info conn_info_;
     std::vector<network> networks_;
 };
 

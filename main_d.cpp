@@ -41,7 +41,7 @@ int main() try
     log_writer.set_log_name(cfg.log_file_name());
 
     io_service srv;
-    udp::endpoint flow_source(boost::asio::ip::address_v4::any(), cfg.source_port());
+    udp::endpoint flow_source(boost::asio::ip::address_v4::any(), cfg.flowcd_port());
     udp::socket socket(srv, flow_source);
     socket_ptr = &socket;
     srv.run();

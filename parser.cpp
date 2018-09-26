@@ -36,7 +36,7 @@ void parser::parse_templates_()
 {
     for(set_info set : sets_)
     {
-        if(set.id != 2)
+        if(set.id != TEMPLATE_SET_ID)
         {
             continue;
         }

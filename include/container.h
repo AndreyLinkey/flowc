@@ -58,7 +58,7 @@ private:
     std::condition_variable cond_;
     std::mutex mtx_;
     std::fstream file_;
-    std::streamoff file_len_;
+    std::size_t file_len_;
     volatile bool process_;
 };
 

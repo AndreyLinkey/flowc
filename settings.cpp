@@ -1,7 +1,7 @@
 #include "include/settings.h"
 
 settings::settings()
-    : source_port_(SOURCE_PORT), buff_length_(BUFF_LENGTH), input_queue_length_(INPUT_QUEUE_LENGTH),
+    : flowcd_port_(FLOWCD_PORT), buff_length_(BUFF_LENGTH), input_queue_length_(INPUT_QUEUE_LENGTH),
       write_queue_length_(WRITE_QUEUE_LENGTH), threads_count_(THREADS_COUNT), flow_timeout_(FLOW_TIMEOUT),
       new_file_inteval_(NEW_FILE_INTERVAL), log_file_name_(LOG_FILE_NAME), output_directory_(OUTPUT_DIRECTORY)
 {
@@ -12,7 +12,8 @@ settings settings::load_config(std::string config_name)
 {
     options_description desc{"Options"};
     desc.add_options()
-            ("source", value<int>()->default_value(SOURCE_PORT), "Source port")
+            ("source", value<int>()->default_value(FLOWCD_PORT), "Source port")
+            ("viewer_port", value<int>()->default_value(FLOWC_PORT), "Flowc viewer port")
             ("buffer", value<int>()->default_value(BUFF_LENGTH), "Buffer length")
             ("input_queue", value<int>()->default_value(INPUT_QUEUE_LENGTH), "Input queue length")
             ("write_queue", value<int>()->default_value(WRITE_QUEUE_LENGTH), "Write queue length")
@@ -33,7 +34,9 @@ settings settings::load_config(std::string config_name)
 
     settings conf_opts;
     if (vm.count("source"))
-        conf_opts.source_port_ = vm["source"].as<int>();
+        conf_opts.flowcd_port_ = vm["source"].as<int>();
+    if (vm.count("viewer_port"))
+        conf_opts.flowc_port_ = vm["viewer_port"].as<int>();
     if (vm.count("buffer"))
         conf_opts.buff_length_ = vm["buffer"].as<int>();
     if (vm.count("input_queue"))

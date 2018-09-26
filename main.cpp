@@ -1,61 +1,9 @@
 
-//#include <array>
-//#include <filesystem>
-//#include <cstdlib>
-//#include <iostream>
-//#include <boost/asio.hpp>
-//#include <iostream>
-//#include <iomanip>
-//#include <algorithm>
-
-//using boost::asio::ip::udp;
-
-//#include <condition_variable>
-//#include <thread>
-//#include <chrono>
-//#include <time.h>
-//#include <queue>
-//#include <string>
-//#include <utility>
-//#include <cstdlib>
-//#include <tuple>
-
-//#include <boost/circular_buffer.hpp>
-//#include <unistd.h>
-
-//#include "include/swappable_circular_buffer.h"
-//#include "include/defaults.h"
-//#include "include/parser.h"
-//#include "include/templates.h"
-//#include "include/container.h"
-//#include "include/common.h"
-//#include "include/settings.h"
-
-//#include <boost/program_options.hpp>
-//#include <iostream>
-//#include <fstream>
-//#include <string>
-
-//#include <algorithm>
-//#include <iterator>
-//#include <regex>
-
-//using std::copy_if;
-
-//#include  <boost/range/iterator_range.hpp>
-//#include <boost/range/algorithm.hpp>
-//#include <boost/range/adaptors.hpp>
-//using boost::adaptors::filtered;
-//using boost::adaptors::transformed;
-//using boost::adaptors::uniqued;
-
-//using boost::range::copy;
-//using boost::range::sort;
-
 #include <algorithm>
 #include <filesystem>
 #include <vector>
 
+#include "include/crow.h"
 #include "include/common.h"
 #include "include/container.h"
 #include "include/field.h"
@@ -64,8 +12,7 @@
 
 std::vector<flow_data>::iterator filter_timestamp(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t from, uint32_t to)
 {
-    return std::remove_if(begin, end, [&from, &to](flow_data& flow){return flow.timestamp < from
-                                                                     || flow.timestamp >= to;});
+    return std::remove_if(begin, end, [&from, &to](flow_data& flow){return flow.timestamp < from || flow.timestamp >= to;});
 }
 
 std::vector<flow_data>::iterator filter_ip_src_addr(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t value)
@@ -83,45 +30,40 @@ std::vector<flow_data>::iterator filter_postnat_src_addr(std::vector<flow_data>:
     return std::remove_if(begin, end, [&value](flow_data& flow){return flow.postnat_src_addr != value;});
 }
 
-int main(int argc, const char *argv[])
+std::vector<flow_data> filter_data(std::string directory, uint32_t start_from, uint32_t end_at,
+                                   uint32_t ip_src_addr, uint32_t ip_dst_addr, uint32_t postnat_src_addr)
 {
-    std::string directory = "/home/files";
-    const std::string start_from = "20180920T160100";
-    const std::string end_at = "20180920T160500";
-    const std::string ip_src_addr = ipnum_to_ipstr(0);
-    const std::string ip_dst_addr = "89.249.27.132";
-    const std::string postnat_src_addr = "0.0.0.0";
-
-    if(directory == "")
-    {
-        settings cfg = settings::load_config(CONFIG_NAME);
-        directory = cfg.output_directory();
-    }
-
     std::vector<std::filesystem::directory_entry> files;
     std::filesystem::directory_iterator dir(directory);
     copy_if(std::filesystem::begin(dir), std::filesystem::end(dir), std::back_inserter(files),
         [](const std::filesystem::directory_entry& entry)
         {
             return entry.status().type() == std::filesystem::file_type::regular &&
-                   entry.path().extension().string() == OUTPUT_EXTENSION &&
-                   std::regex_search(entry.path().stem().string(), std::regex("^\\d{8}T\\d{6}$"));
+                    entry.path().extension().string() == OUTPUT_EXTENSION &&
+                    std::regex_search(entry.path().stem().string(), std::regex("^\\d{8}T\\d{6}$"));
         });
 
-    std::sort(files.begin(), files.end(), [](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry entry2)
-        {return entry1.path().stem().string() < entry2.path().stem().string();});
+    std::sort(files.begin(), files.end(),
+        [](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry& entry2)
+        {
+            return entry1.path().stem().string() < entry2.path().stem().string();
+        });
 
-    std::vector<std::filesystem::directory_entry>::iterator first_file =
-    std::max_element(files.begin(), files.end(), [&start_from](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry entry2)
-        {return entry1.path().stem().string() <= start_from &&
-                entry2.path().stem().string() <= start_from &&
-                entry1.path().stem().string() < entry2.path().stem().string();});
+    std::vector<std::filesystem::directory_entry>::iterator first_file = std::max_element(files.begin(), files.end(),
+        [&start_from](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry& entry2)
+        {
+            return entry1.path().stem().string() <= timestamp_to_timestr(start_from) &&
+                   entry2.path().stem().string() <= timestamp_to_timestr(start_from) &&
+                   entry1.path().stem().string() < entry2.path().stem().string();
+        });
 
-    std::vector<std::filesystem::directory_entry>::iterator last_file =
-    std::max_element(first_file, files.end(), [&end_at](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry entry2)
-        {return entry1.path().stem().string() < end_at &&
-                entry2.path().stem().string() < end_at &&
-                entry1.path().stem().string() < entry2.path().stem().string();});
+    std::vector<std::filesystem::directory_entry>::iterator last_file = std::max_element(first_file, files.end(),
+        [&end_at](std::filesystem::directory_entry& entry1, std::filesystem::directory_entry& entry2)
+        {
+            return entry1.path().stem().string() < timestamp_to_timestr(end_at) &&
+                   entry2.path().stem().string() < timestamp_to_timestr(end_at) &&
+                   entry1.path().stem().string() < entry2.path().stem().string();
+        });
 
     std::vector<flow_data> result;
     for(std::vector<std::filesystem::directory_entry>::iterator it = first_file; it <= last_file; ++it)
@@ -137,36 +79,99 @@ int main(int argc, const char *argv[])
             {
                 break;
             }
-            std::vector<flow_data>::iterator filter_end = filter_timestamp(flows.begin(), flows.end(),
-                                                                           timestr_to_timestamp(start_from), timestr_to_timestamp(end_at));
-            if(ipstr_to_ipnum(ip_src_addr) != 0)
-                filter_end = filter_ip_src_addr(flows.begin(), filter_end, ipstr_to_ipnum(ip_src_addr));
-            if(ipstr_to_ipnum(ip_dst_addr) != 0)
-                filter_end = filter_ip_dst_addr(flows.begin(), filter_end, ipstr_to_ipnum(ip_dst_addr));
-            if(ipstr_to_ipnum(postnat_src_addr) != 0)
-                filter_end = filter_postnat_src_addr(flows.begin(), filter_end, ipstr_to_ipnum(postnat_src_addr));
-            //filter_end = filter_postnat_our(flows.begin(), filter_end);
+            std::vector<flow_data>::iterator filter_end = filter_timestamp(flows.begin(), flows.end(), start_from, end_at);
+            if(filter_end == flows.begin())
+                continue;
+
+            if(ip_src_addr != 0)
+                filter_end = filter_ip_src_addr(flows.begin(), filter_end, ip_src_addr);
+            if(ip_dst_addr != 0)
+                filter_end = filter_ip_dst_addr(flows.begin(), filter_end, ip_dst_addr);
+            if(postnat_src_addr != 0)
+                filter_end = filter_postnat_src_addr(flows.begin(), filter_end, postnat_src_addr);
             flows.erase(filter_end, flows.end());
 
-            result.reserve(result.size() + static_cast<unsigned long>(distance(flows.begin(),flows.end())));
+            result.reserve(result.size() + flows.size());
             result.insert(result.end(), flows.begin(), flows.end());
         }
-
-
-        std::cout << "need: " << it->path().stem() << " " << it->path().extension() << std::endl;
     }
-
-
-    for(flow_data& flow: result)
-    {
-        std::cout << timestamp_to_timestr(flow.timestamp) << " "
-                  << " src addr=" << ipnum_to_ipstr(flow.ip_src_addr)
-                  << " dst addr=" << ipnum_to_ipstr(flow.ip_dst_addr)
-                  << " post nat=" << ipnum_to_ipstr(flow.postnat_src_addr) << std::endl;
-    }
+    return result;
 }
 
+int main(int argc, const char *argv[])
+{
+    std::string directory = OUTPUT_DIRECTORY;
+    uint16_t flowc_port = FLOWC_PORT;
 
+    try
+    {
+        settings cfg = settings::load_config(CONFIG_NAME);
+        directory = cfg.output_directory();
+        flowc_port = cfg.flowc_port();
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << "error while loading config file " << e.what() << std::endl;
+    }
+    crow::SimpleApp app;
+
+    CROW_ROUTE(app, "/")
+    ([]()
+    {
+        return crow::response(404);
+    });
+
+    CROW_ROUTE(app, "/test")
+    ([](const crow::request& req)
+    {
+        uint32_t start_from = req.url_params.get("time") == nullptr ? 0 : timestr_to_timestamp(req.url_params.get("time"));
+        if(start_from == 0)
+            return crow::response(400);
+
+        crow::json::wvalue data;
+        data[0] = std::string("value     = ") + req.url_params.get("time");
+        data[1] = std::string("stamp     = ") + std::to_string(start_from);
+        data[2] = std::string("new value = ") + timestamp_to_timestr(start_from);
+
+        return crow::response(data);
+    });
+
+    CROW_ROUTE(app, "/log")
+    ([&directory](const crow::request& req)
+    {
+        crow::json::wvalue data;
+        try
+        {
+            uint32_t start_from = req.url_params.get("from") == nullptr ? 0 : timestr_to_timestamp(req.url_params.get("from"));
+            uint32_t end_at = req.url_params.get("to") == nullptr ? UINT32_MAX : timestr_to_timestamp(req.url_params.get("to"));
+            uint32_t ip_src_addr = req.url_params.get("src_ip") == nullptr ? 0 : ipstr_to_ipnum(req.url_params.get("src_ip"));
+            uint32_t ip_dst_addr = req.url_params.get("dst_ip") == nullptr ? 0 : ipstr_to_ipnum(req.url_params.get("dst_ip"));
+            uint32_t postnat_src_addr = req.url_params.get("postnat") == nullptr ? 0 : ipstr_to_ipnum(req.url_params.get("postnat"));
+
+
+            unsigned int idx = 0;
+            for(flow_data& item: filter_data(directory, start_from, end_at, ip_src_addr, ip_dst_addr, postnat_src_addr))
+            {
+                crow::json::wvalue& json_item = data[idx];
+                json_item["time"] = timestamp_to_timestr(item.timestamp);
+                json_item["src_ip"] = ipnum_to_ipstr(item.ip_src_addr);
+                json_item["dst_ip"] = ipnum_to_ipstr(item.ip_dst_addr);
+                json_item["postnat"] = ipnum_to_ipstr(item.postnat_src_addr);
+                idx++;
+            }
+        }
+        catch (const std::exception &e)
+        {
+            std::cout << "error in parameters " << e.what() << std::endl;
+            return crow::response(400);
+        }
+        return crow::response(data);
+    });
+
+    //app.loglevel(crow::LogLevel::Warning);
+    app.port(flowc_port).run();
+    return 0;
+}
 
 
 //    std::time_t file_int = 4;
