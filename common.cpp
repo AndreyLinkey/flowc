@@ -1,5 +1,21 @@
 #include "include/common.h"
 
+
+uint16_t pack_be_to_uint16(raw_data::const_iterator data_it)
+{
+    return static_cast<uint16_t>(*data_it << 8 | *(data_it + 1));
+}
+
+uint32_t pack_be_to_uint32(raw_data::const_iterator data_it)
+{
+    return static_cast<uint32_t>(*data_it << 24 | *(data_it + 1) << 16 | *(data_it + 2) << 8 | *(data_it + 3));
+}
+
+uint32_t pack_le_to_uint32(raw_data::const_iterator data_it)
+{
+    return static_cast<uint32_t>(*(data_it + 3) << 24 | *(data_it + 2) << 16 | *(data_it + 1) << 8 | *data_it);
+}
+
 uint32_t ipstr_to_ipnum(const std::string& ipstr)
 {
     std::cmatch cm;

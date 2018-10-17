@@ -22,7 +22,7 @@ void logger::write_log(std::string message)
         file.open(log_name_, std::ios::out | std::ios::app);
         if(!file.is_open())
         {
-            std::string err("Unable to open file ");
+            std::string err("unable to open file ");
             err += log_name_;
             throw std::invalid_argument(err);
         }
@@ -32,6 +32,6 @@ void logger::write_log(std::string message)
 
     catch (std::exception& e)
     {
-        std::cout << std::string(t_buff) + " Unable to write log: " << e.what() << std::endl;
+        std::cout << std::string(t_buff) + " unable to write log: " << e.what() << std::endl;
     }
 }

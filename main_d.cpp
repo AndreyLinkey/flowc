@@ -77,7 +77,7 @@ int main() try
         cont.create_file(file_name.string());
         log_writer.write_log("flow collector started");
 
-        while(!terminate)
+        while(true)
         {
             if(!socket.receive(boost::asio::buffer(data, cfg.buff_length())))
                 continue;

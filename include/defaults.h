@@ -22,7 +22,7 @@ const std::string OUTPUT_DIRECTORY("./");
 const std::string LOG_FILE_NAME("/var/log/flowc.log");
 const std::string OUTPUT_EXTENSION(".flwc");
 
-const std::uint32_t RECORDS_COUNT = 512;
+const std::uint32_t RECORDS_COUNT = 1024;
 const std::size_t TEMPLATE_STORAGE_SIZE = 10;
 
 const std::string FILE_NAME_DATETIME_FORMAT = "%Y%m%dT%H%M%S";

@@ -2,6 +2,7 @@
 #define CONTAINER_H
 
 #include <condition_variable>
+#include <iterator>
 #include <fstream>
 #include <mutex>
 #include <vector>
@@ -17,21 +18,26 @@ const size_t BEG_TIMESTAMP_OFFSET = 0;
 const size_t IP_SRC_ADDR_OFFSET = 4;
 const size_t IP_DST_ADDR_OFFSET = 8;
 const size_t POSTNAT_SRC_ADDR_OFFSET = 12;
-const size_t FLOW_RECORD_LENGTH = 16;
+const std::streamoff FLOW_RECORD_LENGTH = 16;
 
 struct container_settings
 {
-    container_settings() = default;
+    container_settings()
+    {
+        signature = DUMP_SIGNATURE;
+        time_delta = 0;
+    }
     container_settings(const struct flow_data& other)
     {
         signature = other.timestamp;
+        time_delta = other.ip_src_addr;
     }
-    operator flow_data() const {return {signature, 0, 0, 0};}
+    operator flow_data() const {return {signature, time_delta, 0, 0};}
 
     uint32_t signature;
+    uint32_t time_delta;
     uint32_t reserved_0;
     uint32_t reserved_1;
-    uint32_t reserved_2;
 };
 
 class container
@@ -39,27 +45,30 @@ class container
 public:
     container(size_t queue_length = 0);
     ~container();
+    void close_file();
     void create_file(std::string &&file_name);
     void open_file(std::string &&file_name);
-    void store_flows(std::vector<flow_data>& flows);
-    std::vector<flow_data> read_flows(size_t count);
     void run();
     void terminate();
-    size_t buff_size();
+    std::vector<flow_data> read_flows(size_t count, uint32_t start_from = 0, uint32_t end_at = UINT32_MAX);
+    void store_flows(std::vector<flow_data>& flows, uint32_t time_delta = 0);
 
 
 private:
-    void flush_buffer_();
     void store_flow_(flow_data& flow);
+    size_t read_data_(size_t flow_count, raw_data &buffer);
     flow_data read_flow_();
+    void seek_by_timestamp_(uint32_t timestamp);
 
     using buffer = swappable_circular_buffer<std::vector<flow_data>>;
     buffer buff_;
     std::condition_variable cond_;
     std::mutex mtx_;
     std::fstream file_;
-    std::size_t file_len_;
     volatile bool process_;
+    container_settings settings_;
+    std::streamoff file_len_;
+    std::streamoff seeked_to_;
 };
 
 

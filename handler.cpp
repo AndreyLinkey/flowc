@@ -12,7 +12,9 @@ void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready
     std::unique_lock<std::mutex> data_ready_lock(buffer_access);
 
     std::vector<flow_data> flows;
-    uint32_t packet = 0, counter = 0, filtered = 0, bs = 0;
+    uint32_t packet = 0, counter = 0, bs = 0;
+    uint32_t stored = 0, time_delta = 0;
+    time_t last_time = time(nullptr);
     time_t t = time(nullptr);
     while(true)
     {
@@ -29,12 +31,29 @@ void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready
                 counter++;
                 if(!flt_.check_flow(flow))
                     continue;
-                filtered++;
+                stored++;
                 flows.push_back(flow);
             }
+
+            time_t new_time = time(nullptr);
+            if(new_time != last_time)
+            {
+                time_delta = RECORDS_COUNT / (stored / static_cast<uint32_t>(new_time - last_time) + 1) + 1;
+
+                std::cout << "timestamp=" << std::to_string(new_time)
+                          << " stored=" << std::to_string(stored)
+                          << " rate=" << std::to_string(stored / static_cast<uint32_t>(new_time - last_time) + 1)
+                          << " time_delta=" << std::to_string(time_delta)
+                          << " bufer_len=" <<  std::to_string(RECORDS_COUNT)
+                          << std::endl;
+
+                stored = 0;
+                last_time = new_time;
+            }
+
             if(flows.size() > RECORDS_COUNT)
             {
-                cont_.store_flows(flows);
+                cont_.store_flows(flows, time_delta);
                 flows.clear();
             }
 
@@ -44,11 +63,10 @@ void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready
                 log_writer.write_log("buffer size " + std::to_string(bs) +
                                      " packet count " + std::to_string(packet / 600) +
                                      " average flows count " + std::to_string(counter / 600) +
-                                     " average stored count " + std::to_string(filtered / 600));
+                                     " average stored count " + std::to_string(stored / 600));
                 t = new_t;
                 packet = 0;
                 counter = 0;
-                filtered = 0;
             }
 
             data_ready_lock.lock();

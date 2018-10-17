@@ -10,10 +10,10 @@
 #include "include/settings.h"
 
 
-std::vector<flow_data>::iterator filter_timestamp(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t from, uint32_t to)
-{
-    return std::remove_if(begin, end, [&from, &to](flow_data& flow){return flow.timestamp < from || flow.timestamp >= to;});
-}
+//std::vector<flow_data>::iterator filter_timestamp(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t from, uint32_t to)
+//{
+//    return std::remove_if(begin, end, [&from, &to](flow_data& flow){return flow.timestamp < from || flow.timestamp >= to;});
+//}
 
 std::vector<flow_data>::iterator filter_ip_src_addr(std::vector<flow_data>::iterator begin, std::vector<flow_data>::iterator end, uint32_t value)
 {
@@ -74,15 +74,16 @@ std::vector<flow_data> filter_data(std::string directory, uint32_t start_from, u
         std::vector<flow_data> flows;
         while(true)
         {
-            flows = cont.read_flows(256);
+            flows = cont.read_flows(256, start_from, end_at);
             if(flows.size() == 0)
             {
                 break;
             }
-            std::vector<flow_data>::iterator filter_end = filter_timestamp(flows.begin(), flows.end(), start_from, end_at);
-            if(filter_end == flows.begin())
-                continue;
+//            std::vector<flow_data>::iterator filter_end = filter_timestamp(flows.begin(), flows.end(), start_from, end_at);
+//            if(filter_end == flows.begin())
+//                continue;
 
+            std::vector<flow_data>::iterator filter_end = flows.end();
             if(ip_src_addr != 0)
                 filter_end = filter_ip_src_addr(flows.begin(), filter_end, ip_src_addr);
             if(ip_dst_addr != 0)
@@ -93,6 +94,7 @@ std::vector<flow_data> filter_data(std::string directory, uint32_t start_from, u
 
             result.reserve(result.size() + flows.size());
             result.insert(result.end(), flows.begin(), flows.end());
+            //break;
         }
     }
     return result;
@@ -118,20 +120,36 @@ int main(int argc, const char *argv[])
     CROW_ROUTE(app, "/")
     ([]()
     {
+        std::cout << "char size is " << sizeof(char) << "\n"
+                  << "short size is " << sizeof(short) << "\n"
+                  << "int size is " << sizeof(int) << "\n"
+                  << "long size is " << sizeof(long) << "\n"
+                  << "long long size is " << sizeof(long long) << "\n"
+                  << "streamof size is " << sizeof(std::streamoff) << std::endl;
+
         return crow::response(404);
     });
 
-    CROW_ROUTE(app, "/test")
+    CROW_ROUTE(app, "/convert")
     ([](const crow::request& req)
     {
-        uint32_t start_from = req.url_params.get("time") == nullptr ? 0 : timestr_to_timestamp(req.url_params.get("time"));
-        if(start_from == 0)
-            return crow::response(400);
-
         crow::json::wvalue data;
-        data[0] = std::string("value     = ") + req.url_params.get("time");
-        data[1] = std::string("stamp     = ") + std::to_string(start_from);
-        data[2] = std::string("new value = ") + timestamp_to_timestr(start_from);
+        if(req.url_params.get("ipstr") != nullptr)
+        {
+            data["ipnum"] = std::to_string(ipstr_to_ipnum(req.url_params.get("ipstr")));
+        }
+        if(req.url_params.get("ipnum") != nullptr)
+        {
+            data["ipstr"] = ipnum_to_ipstr(std::stoul(req.url_params.get("ipnum")));
+        }
+        if(req.url_params.get("timestr") != nullptr)
+        {
+            data["timestamp"] = std::to_string(timestr_to_timestamp(req.url_params.get("timestr")));
+        }
+        if(req.url_params.get("timestamp") != nullptr)
+        {
+            data["timestr"] = timestamp_to_timestr(std::stoul(req.url_params.get("timestamp")));
+        }
 
         return crow::response(data);
     });
@@ -144,8 +162,8 @@ int main(int argc, const char *argv[])
         {
             uint32_t start_from = req.url_params.get("from") == nullptr ? 0 : timestr_to_timestamp(req.url_params.get("from"));
             uint32_t end_at = req.url_params.get("to") == nullptr ? UINT32_MAX : timestr_to_timestamp(req.url_params.get("to"));
-            uint32_t ip_src_addr = req.url_params.get("src_ip") == nullptr ? 0 : ipstr_to_ipnum(req.url_params.get("src_ip"));
-            uint32_t ip_dst_addr = req.url_params.get("dst_ip") == nullptr ? 0 : ipstr_to_ipnum(req.url_params.get("dst_ip"));
+            uint32_t ip_src_addr = req.url_params.get("src") == nullptr ? 0 : ipstr_to_ipnum(req.url_params.get("src"));
+            uint32_t ip_dst_addr = req.url_params.get("dst") == nullptr ? 0 : ipstr_to_ipnum(req.url_params.get("dst"));
             uint32_t postnat_src_addr = req.url_params.get("postnat") == nullptr ? 0 : ipstr_to_ipnum(req.url_params.get("postnat"));
 
 
@@ -154,8 +172,8 @@ int main(int argc, const char *argv[])
             {
                 crow::json::wvalue& json_item = data[idx];
                 json_item["time"] = timestamp_to_timestr(item.timestamp);
-                json_item["src_ip"] = ipnum_to_ipstr(item.ip_src_addr);
-                json_item["dst_ip"] = ipnum_to_ipstr(item.ip_dst_addr);
+                json_item["src"] = ipnum_to_ipstr(item.ip_src_addr);
+                json_item["dst"] = ipnum_to_ipstr(item.ip_dst_addr);
                 json_item["postnat"] = ipnum_to_ipstr(item.postnat_src_addr);
                 idx++;
             }
@@ -164,6 +182,30 @@ int main(int argc, const char *argv[])
         {
             std::cout << "error in parameters " << e.what() << std::endl;
             return crow::response(400);
+        }
+        return crow::response(data);
+    });
+
+    CROW_ROUTE(app, "/test")
+    ([&directory](const crow::request& req)
+    {
+        crow::json::wvalue data;
+
+        std::map<std::string, std::size_t> test_case{{"20181016T124836", 0x10},
+                                                     {"20181016T124837", 0x72a0},
+                                                     {"20181016T124838", 0x2b0f0},
+                                                     {"20181016T124839", 0x4c780},
+                                                     {"20181016T124840", 0x68ed0},
+                                                     {"20181016T124841", 0x78530}};
+
+
+
+        std::cout << std::hex;
+        for(std::pair<std::string, std::size_t> val: test_case)
+        {
+            filter_data(directory, timestr_to_timestamp(val.first), UINT32_MAX, 0, 0, 0);
+            std::cout << val.first << " " << val.second << std::endl;
+            std::cout << "------------------------------------------\n" << std::endl;
         }
         return crow::response(data);
     });

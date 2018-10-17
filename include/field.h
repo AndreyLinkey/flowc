@@ -6,6 +6,7 @@
 #include <tuple>
 #include <vector>
 
+#include "common.h"
 #include "defaults.h"
 
 enum field_type
@@ -29,11 +30,7 @@ struct flow_data
     uint32_t postnat_src_addr;
 };
 
-using raw_data = std::vector<unsigned char>;
 using field_handler = void (&)(raw_data::const_iterator, flow_data&);
-
-uint16_t packtwo2int(raw_data::const_iterator data_it);
-uint32_t packfour2int(raw_data::const_iterator data_it);
 
 void ip_src_addr_parser(raw_data::const_iterator data_it, flow_data& values);
 void ip_dst_addr_parser(raw_data::const_iterator data_it, flow_data& values);

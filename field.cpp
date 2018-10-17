@@ -27,27 +27,17 @@ bool flow_data::operator<(const flow_data& other) const
     return false;
 }
 
-uint16_t packtwo2int(raw_data::const_iterator data_it)
-{
-    return static_cast<uint16_t>(*data_it << 8 | *(data_it + 1));
-}
-
-uint32_t packfour2int(raw_data::const_iterator data_it)
-{
-    return static_cast<uint32_t>(*data_it << 24 | *(data_it + 1) << 16 | *(data_it + 2) << 8 | *(data_it + 3));
-}
-
 void ip_src_addr_parser(raw_data::const_iterator data_it, flow_data& values)
 {
-    values.ip_src_addr = packfour2int(data_it);
+    values.ip_src_addr = pack_be_to_uint32(data_it);
 }
 
 void ip_dst_addr_parser(raw_data::const_iterator data_it, flow_data& values)
 {
-    values.ip_dst_addr = packfour2int(data_it);
+    values.ip_dst_addr = pack_be_to_uint32(data_it);
 }
 
 void postnat_src_addr_parser(raw_data::const_iterator data_it, flow_data& values)
 {
-    values.postnat_src_addr = packfour2int(data_it);
+    values.postnat_src_addr = pack_be_to_uint32(data_it);
 }

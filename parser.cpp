@@ -4,21 +4,21 @@ parser::parser(raw_data& data)
     : data_(data)
 {
     raw_data::const_iterator data_it = data_.cbegin();
-    if(packtwo2int(data_it + IPFIX_VERSION_OFFSET) != IPFIX_VERSION)
+    if(pack_be_to_uint16(data_it + IPFIX_VERSION_OFFSET) != IPFIX_VERSION)
         throw std::invalid_argument("version invalid");
 
-    uint16_t data_length = packtwo2int(data_it + IPFIX_LENGTH_OFFSET);
+    uint16_t data_length = pack_be_to_uint16(data_it + IPFIX_LENGTH_OFFSET);
     if(data_length > data_.size())
         throw std::invalid_argument("buffer too short");
-    timestamp_ = packfour2int(data_it + IPFIX_TIMESTAMP_OFFSET);
+    timestamp_ = pack_be_to_uint32(data_it + IPFIX_TIMESTAMP_OFFSET);
 
     uint16_t set_offset = IPFIX_HEADER_LENGTH;
     while(set_offset < data_length)
     {
         set_info set;
         set.offset = set_offset;
-        set.id = packtwo2int(data_it + set_offset + IPFIX_SET_ID_OFFSET);
-        set.length = packtwo2int(data_it + set_offset + IPFIX_SET_LENGTH_OFFSET);
+        set.id = pack_be_to_uint16(data_it + set_offset + IPFIX_SET_ID_OFFSET);
+        set.length = pack_be_to_uint16(data_it + set_offset + IPFIX_SET_LENGTH_OFFSET);
         set.templ_ptr = templates_.template_ptr(set.id);
         sets_.push_back(set);
         set_offset += set.length;
@@ -45,8 +45,8 @@ void parser::parse_templates_()
         uint16_t template_offset = IPFIX_SET_HEADER_LENGTH;
         while(template_offset < set.length)
         {
-            uint16_t templ_id = packtwo2int(data_it + template_offset + IPFIX_TEMPLATE_ID_OFFSET);
-            uint16_t field_count = packtwo2int(data_it + template_offset + IPFIX_TEMPLATE_COUNT_OFFSET);
+            uint16_t templ_id = pack_be_to_uint16(data_it + template_offset + IPFIX_TEMPLATE_ID_OFFSET);
+            uint16_t field_count = pack_be_to_uint16(data_it + template_offset + IPFIX_TEMPLATE_COUNT_OFFSET);
 
             template_offset += IPFIX_TEMPLATE_HEADER_LENGTH;
             if(template_offset + IPFIX_TEMPLATE_FIELD_LENGTH * field_count > set.length)
@@ -56,8 +56,8 @@ void parser::parse_templates_()
             ftemplate.length = 0;
             for(uint16_t idx = 0; idx < field_count; ++idx)
             {
-                field_type type = static_cast<field_type>(packtwo2int(data_it + template_offset + IPFIX_TEMPLATE_FIELD_TYPE_OFFSET));
-                uint16_t length = packtwo2int(data_it + template_offset + IPFIX_TEMPLATE_FIELD_LENGTH_OFFSET);
+                field_type type = static_cast<field_type>(pack_be_to_uint16(data_it + template_offset + IPFIX_TEMPLATE_FIELD_TYPE_OFFSET));
+                uint16_t length = pack_be_to_uint16(data_it + template_offset + IPFIX_TEMPLATE_FIELD_LENGTH_OFFSET);
 
                 if(fields.find(type) != fields.end())
                 {
