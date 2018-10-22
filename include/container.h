@@ -50,7 +50,8 @@ public:
     void open_file(std::string &&file_name);
     void run();
     void terminate();
-    std::vector<flow_data> read_flows(size_t count, uint32_t start_from = 0, uint32_t end_at = UINT32_MAX);
+    std::vector<flow_data> read_flows(size_t count, uint32_t start_from, uint32_t end_at,
+                                      uint32_t ip_src_addr, uint32_t ip_dst_addr, uint32_t postnat_src_addr);
     void store_flows(std::vector<flow_data>& flows, uint32_t time_delta = 0);
 
 

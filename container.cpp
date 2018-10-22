@@ -97,7 +97,8 @@ void container::terminate()
     cond_.notify_all();
 }
 
-std::vector<flow_data> container::read_flows(size_t count, uint32_t start_from, uint32_t end_at)
+std::vector<flow_data> container::read_flows(size_t count, uint32_t start_from, uint32_t end_at,
+                                             uint32_t ip_src_addr, uint32_t ip_dst_addr, uint32_t postnat_src_addr)
 {
     if(!file_.is_open())
     {
@@ -117,15 +118,10 @@ std::vector<flow_data> container::read_flows(size_t count, uint32_t start_from, 
     size_t readed = 0;
     do
     {
-        size_t readed = read_data_(count, buffer);
-        //std::cout << "readed " << readed << " buffer size " << buffer.size() << std::endl;
-
+        readed = read_data_(count, buffer);
         for(raw_data::const_iterator it = buffer.begin(); it < buffer.begin() + readed * FLOW_RECORD_LENGTH; it += FLOW_RECORD_LENGTH)
         {
-            //std::cout << std::hex << (int)*it << (int)*(it + 1) << (int)*(it + 2) << (int)*(it + 3) << std::dec << std::endl;
-
             uint32_t timestamp = ByteOrder::from_little_endian(pack_le_to_uint32(it + BEG_TIMESTAMP_OFFSET));
-            //std::cout << "timestamp=" << timestamp << " start_from=" << start_from << " end_at=" << end_at << std::endl;
             if(timestamp < start_from and timestamp >= end_at)
                 continue;
 
@@ -133,10 +129,35 @@ std::vector<flow_data> container::read_flows(size_t count, uint32_t start_from, 
                 break;
 
             flow_data fd;
+            if(ip_src_addr != 0)
+            {
+                fd.ip_src_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + IP_SRC_ADDR_OFFSET));
+                if(fd.ip_src_addr != ip_src_addr) continue;
+            }
+            if(ip_dst_addr != 0)
+            {
+                fd.ip_dst_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + IP_DST_ADDR_OFFSET));
+                if(fd.ip_dst_addr != ip_dst_addr) continue;
+            }
+            if(postnat_src_addr != 0)
+            {
+                fd.postnat_src_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + POSTNAT_SRC_ADDR_OFFSET));
+                if(fd.postnat_src_addr != postnat_src_addr) continue;
+            }
+
             fd.timestamp = timestamp;
-            fd.ip_src_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + IP_SRC_ADDR_OFFSET));
-            fd.ip_dst_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + IP_DST_ADDR_OFFSET));
-            fd.postnat_src_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + POSTNAT_SRC_ADDR_OFFSET));
+            if(ip_src_addr == 0)
+            {
+                fd.ip_src_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + IP_SRC_ADDR_OFFSET));
+            }
+            if(ip_dst_addr == 0)
+            {
+                fd.ip_dst_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + IP_DST_ADDR_OFFSET));
+            }
+            if(postnat_src_addr == 0)
+            {
+                fd.postnat_src_addr = ByteOrder::from_little_endian(pack_le_to_uint32(it + POSTNAT_SRC_ADDR_OFFSET));
+            }
             flows.push_back(fd);
         }
     }
@@ -210,7 +231,7 @@ flow_data container::read_flow_()
 
 void container::seek_by_timestamp_(uint32_t timestamp)
 {
-    const size_t with_delta = timestamp; //- settings_.time_delta;
+    const size_t with_delta = timestamp - settings_.time_delta;
     std::streamoff min_pos = FLOW_RECORD_LENGTH, max_pos = file_len_;
     std::streamoff pos = (max_pos - min_pos) / (2 * FLOW_RECORD_LENGTH) * FLOW_RECORD_LENGTH;
 

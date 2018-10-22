@@ -12,23 +12,23 @@ void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready
     std::unique_lock<std::mutex> data_ready_lock(buffer_access);
 
     std::vector<flow_data> flows;
-    uint32_t packet = 0, counter = 0, bs = 0;
+    //uint32_t packet = 0, counter = 0;
     uint32_t stored = 0, time_delta = 0;
-    time_t last_time = time(nullptr);
-    time_t t = time(nullptr);
+    time_t last_time = time(nullptr) + TIMEDELTA_COUNT_DELAY;
+//    time_t t = time(nullptr);
     while(true)
     {
-        bs = buffer_.size();
+        //bs = buffer_.size();
         while(buffer_.size() != 0)
         {
-            packet++;
+            //packet++;
             buffer_.swap_tail(data_);
             parser p(data_);
             data_ready_lock.unlock();
             std::vector<flow_data> parsed = p.flows();
             for(flow_data flow: parsed)
             {
-                counter++;
+                //counter++;
                 if(!flt_.check_flow(flow))
                     continue;
                 stored++;
@@ -36,38 +36,38 @@ void handler::run(std::mutex& buffer_access, std::condition_variable& data_ready
             }
 
             time_t new_time = time(nullptr);
-            if(new_time != last_time)
+            if(new_time > last_time)
             {
-                time_delta = RECORDS_COUNT / (stored / static_cast<uint32_t>(new_time - last_time) + 1) + 1;
+                time_delta = HANDLER_BUFFER_SIZE / (stored / static_cast<uint32_t>(new_time - last_time) + 1) + 1;
 
-                std::cout << "timestamp=" << std::to_string(new_time)
-                          << " stored=" << std::to_string(stored)
-                          << " rate=" << std::to_string(stored / static_cast<uint32_t>(new_time - last_time) + 1)
-                          << " time_delta=" << std::to_string(time_delta)
-                          << " bufer_len=" <<  std::to_string(RECORDS_COUNT)
-                          << std::endl;
+//                std::cout << "timestamp=" << std::to_string(new_time)
+//                          << " stored=" << std::to_string(stored)
+//                          << " rate=" << std::to_string(stored / static_cast<uint32_t>(new_time - last_time) + 1)
+//                          << " time_delta=" << std::to_string(time_delta)
+//                          << " bufer_len=" <<  std::to_string(HANDLER_BUFFER_SIZE)
+//                          << std::endl;
 
                 stored = 0;
                 last_time = new_time;
             }
 
-            if(flows.size() > RECORDS_COUNT)
+            if(flows.size() > HANDLER_BUFFER_SIZE)
             {
                 cont_.store_flows(flows, time_delta);
                 flows.clear();
             }
 
-            time_t new_t = time(nullptr);
-            if(new_t != t && (new_t - t) % 600 == 0 )
-            {
-                log_writer.write_log("buffer size " + std::to_string(bs) +
-                                     " packet count " + std::to_string(packet / 600) +
-                                     " average flows count " + std::to_string(counter / 600) +
-                                     " average stored count " + std::to_string(stored / 600));
-                t = new_t;
-                packet = 0;
-                counter = 0;
-            }
+//            time_t new_t = time(nullptr);
+//            if(new_t != t && (new_t - t) % 600 == 0 )
+//            {
+//                log_writer.write_log("buffer size " + std::to_string(bs) +
+//                                     " packet count " + std::to_string(packet / 600) +
+//                                     " average flows count " + std::to_string(counter / 600) +
+//                                     " average stored count " + std::to_string(stored / 600));
+//                t = new_t;
+//                packet = 0;
+//                counter = 0;
+//            }
 
             data_ready_lock.lock();
         }
