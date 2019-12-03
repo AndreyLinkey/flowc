@@ -183,7 +183,7 @@ namespace crow
     {
     public:
         Connection(
-            boost::asio::io_service& io_service, 
+            boost::asio::io_context& io_context,
             Handler* handler, 
             const std::string& server_name,
             std::tuple<Middlewares...>* middlewares,
@@ -191,7 +191,7 @@ namespace crow
             detail::dumb_timer_queue& timer_queue,
             typename Adaptor::context* adaptor_ctx_
             ) 
-            : adaptor_(io_service, adaptor_ctx_), 
+            : adaptor_(io_context, adaptor_ctx_),
             handler_(handler), 
             parser_(this), 
             server_name_(server_name),
@@ -311,7 +311,7 @@ namespace crow
 
                 ctx_ = detail::context<Middlewares...>();
                 req.middleware_context = (void*)&ctx_;
-                req.io_service = &adaptor_.get_io_service();
+                req.io_context = &adaptor_.get_io_context();
                 req.endpoint = std::make_tuple(adaptor_.remote_endpoint().address().to_string(),
                                                adaptor_.remote_endpoint().port());
                 detail::middleware_call_helper<0, decltype(ctx_), decltype(*middlewares_), Middlewares...>(*middlewares_, req, res, ctx_);

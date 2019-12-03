@@ -50,18 +50,19 @@ set(FLOWC_HDR
 )
 
 set (CMAKE_CXX_STANDARD 17)
+
 add_executable(${PROJECT_NAME}d main_d.cpp ${FLOWCD_SRC} ${FLOWCD_HDR})
 add_executable(${PROJECT_NAME} main.cpp ${FLOWC_SRC} ${FLOWC_HDR})
 target_include_directories(${PROJECT_NAME}d PUBLIC include)
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
-find_package(Boost 1.67.0 COMPONENTS system program_options REQUIRED)
+find_package(Boost COMPONENTS system program_options REQUIRED)
 include_directories(${Boost_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME}d LINK_PUBLIC ${Boost_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC ${Boost_LIBRARIES})
 
-target_link_libraries (${PROJECT_NAME}d stdc++fs)
-target_link_libraries (${PROJECT_NAME} stdc++fs)
+target_link_libraries (${PROJECT_NAME}d LINK_PUBLIC stdc++fs)
+target_link_libraries (${PROJECT_NAME} LINK_PUBLIC stdc++fs)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

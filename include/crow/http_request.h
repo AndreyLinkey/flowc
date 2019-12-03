@@ -32,7 +32,7 @@ namespace crow
         std::string body;
 
         void* middleware_context{};
-        boost::asio::io_service* io_service{};
+        boost::asio::io_context* io_context{};
 
         request()
             : method(HTTPMethod::Get)
@@ -57,13 +57,13 @@ namespace crow
         template<typename CompletionHandler>
         void post(CompletionHandler handler)
         {
-            io_service->post(handler);
+            io_context->post(handler);
         }
 
         template<typename CompletionHandler>
         void dispatch(CompletionHandler handler)
         {
-            io_service->dispatch(handler);
+            io_context->dispatch(handler);
         }
 
     };

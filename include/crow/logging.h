@@ -15,17 +15,17 @@ namespace crow
     {
 #ifndef ERROR
         DEBUG = 0,
-        INFO,
-        WARNING,
-        ERROR,
-        CRITICAL,
+        INFO = 1,
+        WARNING = 2,
+        ERROR = 3,
+        CRITICAL = 4,
 #endif
 
         Debug = 0,
-        Info,
-        Warning,
-        Error,
-        Critical,
+        Info = 1,
+        Warning = 2,
+        Error = 3,
+        Critical = 4,
     };
 
     class ILogHandler {
