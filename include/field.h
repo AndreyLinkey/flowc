@@ -44,4 +44,9 @@ static const fields_t fields
     {postnat_src_addr, postnat_src_addr_parser}
 };
 
+struct flow_hasher
+{
+  std::size_t operator()(const flow_data& flow) const;
+};
+
 #endif // FIELD_H

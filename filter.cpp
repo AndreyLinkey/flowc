@@ -6,6 +6,12 @@ filter::filter(std::vector<network> networks, time_t timeout)
 
 }
 
+filter::filter()
+    : last_erase_time_(0)
+{
+
+}
+
 bool filter::check_flow(const flow_data& flow)
 {
     if(std::none_of(networks_.begin(), networks_.end(),
@@ -41,12 +47,6 @@ bool filter::check_flow(const flow_data& flow)
 
     flow_cache_.insert(map_cache::value_type(flow, flow.timestamp));
     return true;
-}
-
-filter::filter()
-    : last_erase_time_(0)
-{
-
 }
 
 void filter::erase_(uint32_t timestamp)

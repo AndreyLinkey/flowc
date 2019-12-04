@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <functional>
-#include <map>
+#include <unordered_map>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -28,7 +28,7 @@ class filter
 {
 public:
     filter(std::vector<network> networks, time_t timeout);
-    bool check_flow(const flow_data &flow);
+    bool check_flow(const flow_data& flow);
 
 private:
     filter();
@@ -36,13 +36,13 @@ private:
 //    using bimap_cache = boost::bimap<boost::bimaps::set_of<flow_data>,
 //                                     boost::bimaps::multiset_of<uint32_t>>;
 //    bimap_cache flow_cache_;
-    using map_cache = std::map<flow_data, uint32_t>;
+//    using map_cache = std::map<flow_data, uint32_t>;
+    using map_cache = std::unordered_map<flow_data, uint32_t, flow_hasher>;
     map_cache flow_cache_;
     uint32_t last_erase_time_;
     std::vector<network> networks_;
     time_t timeout_;
     mutable std::mutex mtx_;
-
 };
 
 #endif // FILTER_H

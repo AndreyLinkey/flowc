@@ -41,3 +41,10 @@ void postnat_src_addr_parser(raw_data::const_iterator data_it, flow_data& values
 {
     values.postnat_src_addr = pack_be_to_uint32(data_it);
 }
+
+std::size_t flow_hasher::operator()(const flow_data& flow) const
+{
+    size_t result = (flow.ip_src_addr + flow.ip_dst_addr + 1) * (flow.ip_src_addr + flow.ip_dst_addr) / 2 + flow.ip_dst_addr;
+    result = (result + flow.postnat_src_addr + 1) * (result + flow.postnat_src_addr) / 2 + flow.postnat_src_addr;
+    return result;
+}
