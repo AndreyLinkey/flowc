@@ -114,8 +114,6 @@ std::vector<flow_data> parser::flows()
 
                     }
                 }
-
-//                fields.at(field.type)(data_it + offset, data);
             }
             sets_data.push_back(data);
             flow_offset += templ.length;

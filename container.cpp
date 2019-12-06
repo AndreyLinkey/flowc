@@ -111,6 +111,8 @@ std::vector<flow_data> container::read_flows(size_t count, uint32_t start_from, 
         seeked_to_ = start_from;
     }
 
+//    std::cout << "seeking to: " << std::to_string(seeked_to_) << std::endl;
+
     std::vector<flow_data> flows;
     flows.reserve(count);
 
@@ -163,6 +165,8 @@ std::vector<flow_data> container::read_flows(size_t count, uint32_t start_from, 
     }
     while(readed > 0 && flows.size() < count);
 
+//    std::cout << "readed records: " << std::to_string(flows.size()) << std::endl;
+
     return flows;
 }
 
@@ -197,18 +201,6 @@ size_t container::read_data_(size_t flow_count, raw_data& buffer)
 
     //buffer.resize(data_len);
     file_.read(reinterpret_cast<char*>(&buffer[0]), static_cast<std::streamoff>(data_len));
-
-//    std::cout << "*** buffer size " << buffer.size() << " data_len " << data_len << std::endl
-//              << std::hex;
-//    int i = 0;
-//    for(unsigned char c: buffer)
-//    {
-//        std::cout << std::setw(2) << std::setfill('0') << (int)c;
-//        i++;
-//        if(i != 0 && i % 16 == 0)
-//            std::cout << '\n';
-//    }
-//    std::cout << std::dec << std::endl;
 
     return data_len / FLOW_RECORD_LENGTH;
 }

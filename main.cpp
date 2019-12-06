@@ -68,13 +68,6 @@ int main(int argc, const char *argv[])
     CROW_ROUTE(app, "/")
     ([]()
     {
-//        std::cout << "char size is " << sizeof(char) << "\n"
-//                  << "short size is " << sizeof(short) << "\n"
-//                  << "int size is " << sizeof(int) << "\n"
-//                  << "size_t size is " << sizeof(size_t) << "\n"
-//                  << "long size is " << sizeof(long) << "\n"
-//                  << "long long size is " << sizeof(long long) << "\n"
-//                  << "streamof size is " << sizeof(std::streamoff) << std::endl;
         return crow::response(404);
     });
 
@@ -121,11 +114,18 @@ int main(int argc, const char *argv[])
 
             directory_list files = file_list(directory, start_from, end_at);
 
+//            std::cout << "required files: ";
+//            for(auto f: files)
+//                std::cout << f.path().string();
+//            std:: cout << std::endl;
+
             unsigned int idx = 0;
             for(std::filesystem::directory_entry& file: files)
             {
                 container cont;
                 cont.open_file(file.path().string());
+
+//                std::cout << "openning file: " << file.path().string() << std::endl;
 
                 while(true)
                 {
@@ -154,32 +154,6 @@ int main(int argc, const char *argv[])
         }
         return crow::response(data);
     });
-
-//    CROW_ROUTE(app, "/test")
-//    ([&directory](const crow::request& req)
-//    {
-//        uint32_t from = req.url_params.get("from") == nullptr ? 0 : std::stoi(req.url_params.get("from"));
-//        uint32_t to = req.url_params.get("to") == nullptr ? 20 : std::stoi(req.url_params.get("to"));
-
-//        using list = std::vector<int>;
-//        list v({1,3,5,7,9,10});
-
-//        crow::json::wvalue data;
-
-//        list::iterator first = std::upper_bound(v.begin(), v.end(), from);
-//        if(first != v.begin())
-//          first--;
-//        list::iterator last = std::upper_bound(v.begin(), v.end(), to);
-//        list s(first, last);
-
-//        int i = 0;
-//        for(int v: s)
-//        {
-//            data[i++] = v;
-//        }
-
-//        return crow::response(data);
-//    });
 
     //app.loglevel(crow::LogLevel::Warning);
     app.port(flowc_port).run();

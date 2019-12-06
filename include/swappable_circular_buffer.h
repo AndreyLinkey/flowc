@@ -24,13 +24,12 @@ public:
 
     size_t size() const
     {
-        //std::shared_lock<std::shared_mutex> lock(buffer_mutex_);
         return size_;
     }
 
     void swap_head(T& other)
     {
-        //std::lock_guard<std::shared_mutex> lock(buffer_mutex_);
+
         if(size_ + 1 > buffer_.size())
         {
             throw std::length_error("overflow, max buffer_size is " + std::to_string(buffer_.size()));
@@ -43,7 +42,6 @@ public:
 
     void swap_tail(T& other)
     {
-        //std::lock_guard<std::shared_mutex> lock(buffer_mutex_);
         if(size_ == 0)
         {
             throw std::out_of_range("empty");
@@ -56,13 +54,11 @@ public:
 
     size_t unit_length() const
     {
-        //std::shared_lock<std::shared_mutex> lock(buffer_mutex_);
         return head_->size();
     }
 
     void print() const
     {
-        //std::shared_lock<std::shared_mutex> lock(buffer_mutex_);
         for(int i = 0; i < buffer_.size(); ++i)
         {
             for(unsigned char byte: buffer_[i])

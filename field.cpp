@@ -9,9 +9,6 @@ bool flow_data::operator==(const flow_data& other) const
 
 bool flow_data::operator<(const flow_data& other) const
 {
-//    return std::tie(ip_src_addr, ip_dst_addr, postnat_src_addr) <
-//           std::tie(other.ip_src_addr, other.ip_dst_addr, other.postnat_src_addr);
-
     if(ip_src_addr != other.ip_src_addr)
     {
         return ip_src_addr < other.ip_src_addr;
