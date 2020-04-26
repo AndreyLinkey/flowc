@@ -71,30 +71,6 @@ int main(int argc, const char *argv[])
         return crow::response(404);
     });
 
-    CROW_ROUTE(app, "/convert")
-    ([](const crow::request& req)
-    {
-        crow::json::wvalue data;
-        if(req.url_params.get("ipstr") != nullptr)
-        {
-            data["ipnum"] = std::to_string(ipstr_to_ipnum(req.url_params.get("ipstr")));
-        }
-        if(req.url_params.get("ipnum") != nullptr)
-        {
-            data["ipstr"] = ipnum_to_ipstr(std::stoul(req.url_params.get("ipnum")));
-        }
-        if(req.url_params.get("timestr") != nullptr)
-        {
-            data["timestamp"] = std::to_string(timestr_to_timestamp(req.url_params.get("timestr")));
-        }
-        if(req.url_params.get("timestamp") != nullptr)
-        {
-            data["timestr"] = timestamp_to_timestr(std::stoul(req.url_params.get("timestamp")));
-        }
-
-        return crow::response(data);
-    });
-
     CROW_ROUTE(app, "/log")
     ([&directory](const crow::request& req)
     {
